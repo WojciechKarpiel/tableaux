@@ -140,7 +140,6 @@ object Parser {
 
   // see usage
   def fixVariable(v: NamedVar, formula: Formula): Formula = formula match
-    case Equal(a, b) => Equal(fixTerm(v, a), fixTerm(v, b))
     case Predicate(name, args) => Predicate(name, args.map(a => fixTerm(v, a)))
     case Not(formula) => Not(fixVariable(v, formula))
     case f@ForAll(variable, body) => (if variable == v then f /* shadowed */
