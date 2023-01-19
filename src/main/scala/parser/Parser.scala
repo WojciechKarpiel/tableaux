@@ -5,16 +5,16 @@ import lang.Formula.*
 import lang.Term.*
 import lang.{Formula, Term}
 
-import org.parboiled2.*
+import org.parboiled2.{Parser => ParboiledParser, *}
 import org.parboiled2.support.hlist.{::, HList, HNil}
 
 import scala.annotation.{compileTimeOnly, tailrec}
 import scala.collection.immutable
 import scala.util.Try
 
-class Parserq(val input: ParserInput) extends Parser {
+class Parser(val input: ParserInput) extends ParboiledParser {
 
-  import Parserq.*
+  import Parser.*
 
   def InputLine: Rule1[Formula] = rule {
     WhiteSpace ~ Formula ~ EOI
@@ -87,10 +87,10 @@ class Parserq(val input: ParserInput) extends Parser {
     Fn ~> (fn => Predicate(PredicateName(fn.name.name), fn.args))
   }
 
-  def wordBoundary: Rule0 = rule(!Parserq.NameChar)
+  def wordBoundary: Rule0 = rule(!Parser.NameChar)
 
   def Name: Rule1[FunctionName] =
-    rule((capture(Parserq.NameCharS ~ zeroOrMore(Parserq.NameChar) ~ !Parserq.NameChar) ~> (s => FunctionName(s))) ~ (WhiteSpace))
+    rule((capture(Parser.NameCharS ~ zeroOrMore(Parser.NameChar) ~ !Parser.NameChar) ~> (s => FunctionName(s))) ~ (WhiteSpace))
 
 
   def safename(string: String): Rule0 = rule(string ~ wordBoundary)
@@ -119,7 +119,7 @@ class Parserq(val input: ParserInput) extends Parser {
 
 }
 
-object Parserq {
+object Parser {
   private val WhiteSpaceChar = CharPredicate(" \n\r\t\f")
   private var LPar = CharPredicate("(")
   private var RPar = CharPredicate(")")
@@ -129,28 +129,30 @@ object Parserq {
   private def NameChar: CharPredicate = CharPredicate.from(_.isUnicodeIdentifierPart)
 
   def main(args: Array[String]): Unit = {
-    println(Parserq(" eloZiomq").InputLine.run())
-    println(Parserq(" eloZiomq)(").InputLine.run())
-    println(Parserq(" eloZiŁQomq").InputLine.run())
-    println(Parserq(" ~eloZi~ŁQomq").InputLine.run())
-    println(Parserq(" eloZiŁQomq ()").InputLine.run())
-    println(Parserq(" eloZiŁQomq (").InputLine.run())
-    println(Parserq(" eloZiŁQomq (he,qwe(), ddd(a,b, dq, a) )").InputLine.run())
-    println(Parserq("a and b and c").InputLine.run())
+    println(Parser(" eloZiomq").InputLine.run())
+    println(Parser(" eloZiomq)(").InputLine.run())
+    println(Parser(" eloZiŁQomq").InputLine.run())
+    println(Parser(" ~eloZi~ŁQomq").InputLine.run())
+    println(Parser(" eloZiŁQomq ()").InputLine.run())
+    println(Parser(" eloZiŁQomq (").InputLine.run())
+    println(Parser(" eloZiŁQomq (he,qwe(), ddd(a,b, dq, a) )").InputLine.run())
+    println(Parser("a and b and c").InputLine.run())
 
     def elo(value1: String): Unit =
-      val value = Parserq(value1).InputLine.run()
+      val value = run(value1)
       println("given: " + value1)
       println("got:   " + value.get)
 
     elo("a and b and c -> d and e")
-    println(Parserq("(a and b and c) -> d and e").InputLine.run())
+    println(Parser("(a and b and c) -> d and e").InputLine.run())
     elo("forall x (P(x) and P(b) and c) -> d and e")
     elo("a -> b -> c")
     elo("(a -> b) -> c")
     elo("a and b  and (a -> b) -> c")
     elo("(a and b)  and (a -> b) -> c")
   }
+
+  def run(input: ParserInput): Try[Formula] = Parser(input).InputLine.run()
 
 
   def fixTerm(v: NamedVar, term: Term): Term = term match

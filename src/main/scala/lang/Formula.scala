@@ -26,6 +26,8 @@ object Formula {
     def isAtomic: Boolean = arity == 0
 
     override def toString: String = Printing.printFunctionLike(name.name, args)
+
+    def jName: String = name.name;
   }
 
   case class PredicateName(name: String) extends AnyVal {
