@@ -10,6 +10,7 @@ import org.parboiled2.support.hlist.{::, HList, HNil}
 
 import scala.annotation.{compileTimeOnly, tailrec}
 import scala.collection.immutable
+import scala.util.Try
 
 class Parserq(val input: ParserInput) extends Parser {
 
@@ -23,9 +24,8 @@ class Parserq(val input: ParserInput) extends Parser {
   //    rule(nonLeftRecursiveByNature ~ RRECSTUFF.?)
     lv2rec
 
-  def nonLeftRecursiveByNature: Rule1[Formula] = rule(parend | notR | frall | ex | Pred)
+  def nonLeftRecursiveByNature: Rule1[Formula] = rule(parend | notR /* | frall | ex */ | Pred)
 
-  // todo quantbetween lv1 and lv2?
   /*
   \lnot is evaluated first
   ∧ \land and ∨ \lor are evaluated next
@@ -33,10 +33,10 @@ class Parserq(val input: ParserInput) extends Parser {
   → \to is evaluated last.
   */
 
-  def frall: Rule1[Formula] = rule(("forall") ~ WhiteSpace ~ variable ~ Formula ~> ((f: NamedVar, b: Formula) =>
+  def frall: Rule1[Formula] = rule(("∀" | safename("forall")) ~ WhiteSpace ~ variable ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
     ForAll(f, fixVariable(f, b))))
 
-  def ex: Rule1[Formula] = rule(("exists") ~ WhiteSpace ~ variable ~ Formula ~> ((f: NamedVar, b: Formula) =>
+  def ex: Rule1[Formula] = rule(("∃" | safename("exists")) ~ WhiteSpace ~ variable ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
     Exists(f, fixVariable(f, b))))
 
 
@@ -45,10 +45,11 @@ class Parserq(val input: ParserInput) extends Parser {
   def lvl0rec: Rule1[Formula] = nonLeftRecursiveByNature
 
   def lv1rec: Rule1[Formula] = rule(lvl0rec ~ (rrecAnd | rrecOr).?)
-  //  def lv1arec: Rule1[Formula] = rule(lvl1rec ~ (rrecAnd | rrecOr).?)
+
+  def lv1Arec: Rule1[Formula] = rule((frall | ex) | (lv1rec ~ (rrecAnd | rrecOr).?))
 
 
-  def lv2rec: Rule1[Formula] = rule(lv1rec ~ (rrecEquiv | rrecImpies).?)
+  def lv2rec: Rule1[Formula] = rule(lv1Arec ~ (rrecEquiv | rrecImpies).?)
 
   def RRECSTUFF: FtoF = rule(
     rrecAnd | rrecOr |
@@ -56,53 +57,43 @@ class Parserq(val input: ParserInput) extends Parser {
   )
 
   def notR: Rule1[Formula] = rule {
-    ("!" | "~" | "not") ~ WhiteSpace ~ Formula ~> ((f: Formula) => Not(f))
+    ("!" | "~" | "¬" | safename("not")) ~ WhiteSpace ~ Formula ~> ((f: Formula) => Not(f))
   }
 
   def parend: Rule1[Formula] = rule(ws('(') ~ Formula ~ ws(')'))
 
-  def and: Rule1[And] = rule {
-    (nonLeftRecursiveByNature ~ ("and" | "&&") ~ WhiteSpace ~ Formula) ~> ((a: Formula, b: Formula) => And(a, b))
-  }
 
   type Elo = Formula :: HNil //::[Formula, HNil]
   type Elo2 = ::[Formula, ::[Formula, HNil]]
-
-  def andq: Rule[HNil, Elo] = rule {
-    (("and" | "&&") /* todo word boundary */ ~ WhiteSpace ~ Formula)
-  }
-  /* ~> ((a: Formula, b: Formula) => And(a, b) */
-
-  def andF: Rule[Elo2, Elo] = rule(MATCH ~> ((a: Formula, b: Formula) => And(a, b)))
-
-  def combinedAndq: Rule2[Formula, Formula] = rule(((nonLeftRecursiveByNature ~ andq)))
-
-  def combinedAnd: Rule1[Formula] = rule(combinedAndq ~ andF)
 
   type FtoF = Rule[Elo, Elo]
   //  def rrecAnd : FtoF = rule(andq ~ andF)
 
   def rrecImpies: Rule[Elo, Elo] = rule(
-    /* nonRecByNat ~*/ ("->" | "=>") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Implies(a, b))
+    /* nonRecByNat ~*/ ("->" | "=>" | "⇒") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Implies(a, b))
   )
 
   def rrecEquiv: Rule[Elo, Elo] =
-    rule(("<->" | "<=>") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Equivalent(a, b)))
+    rule(("<->" | "<=>" | "⇔") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Equivalent(a, b)))
 
   def rrecOr: FtoF =
-    rule(("or" | "||") ~ WhiteSpace ~ lv1rec ~> ((a: Formula, b: Formula) => Or(a, b)))
+    rule((safename("or") | "∨" | "||") ~ WhiteSpace ~ lv1rec ~> ((a: Formula, b: Formula) => Or(a, b)))
 
   def rrecAnd: FtoF =
-    rule(("and" | "&&") ~ WhiteSpace ~ lv1rec ~> ((a: Formula, b: Formula) => And(a, b)))
+    rule((safename("and") | "∧" | "&&") ~ WhiteSpace ~ lv1rec ~> ((a: Formula, b: Formula) => And(a, b)))
 
 
   def Pred: Rule1[Predicate] = rule { // hax
     Fn ~> (fn => Predicate(PredicateName(fn.name.name), fn.args))
   }
 
+  def wordBoundary: Rule0 = rule(!Parserq.NameChar)
+
   def Name: Rule1[FunctionName] =
     rule((capture(Parserq.NameCharS ~ zeroOrMore(Parserq.NameChar) ~ !Parserq.NameChar) ~> (s => FunctionName(s))) ~ (WhiteSpace))
 
+
+  def safename(string: String): Rule0 = rule(string ~ wordBoundary)
 
   def Fn: Rule1[Function] = rule {
     (
@@ -135,7 +126,7 @@ object Parserq {
 
   private def NameCharS = CharPredicate.from(_.isUnicodeIdentifierStart)
 
-  private def NameChar = CharPredicate.from(_.isUnicodeIdentifierPart)
+  private def NameChar: CharPredicate = CharPredicate.from(_.isUnicodeIdentifierPart)
 
   def main(args: Array[String]): Unit = {
     println(Parserq(" eloZiomq").InputLine.run())
@@ -146,27 +137,19 @@ object Parserq {
     println(Parserq(" eloZiŁQomq (").InputLine.run())
     println(Parserq(" eloZiŁQomq (he,qwe(), ddd(a,b, dq, a) )").InputLine.run())
     println(Parserq("a and b and c").InputLine.run())
-    val value = Parserq("a and b and c -> d and e").InputLine.run()
-    println(value)
+
+    def elo(value1: String): Unit =
+      val value = Parserq(value1).InputLine.run()
+      println("given: " + value1)
+      println("got:   " + value.get)
+
+    elo("a and b and c -> d and e")
     println(Parserq("(a and b and c) -> d and e").InputLine.run())
-    println(Parserq("forall x (P(x) and P(b) and c) -> d and e").InputLine.run())
-  }
-
-  final case class Alist[A, B] private(l: List[(A, B)]) {
-    def this() = this(Nil)
-
-    def add(p: (A, B)): Alist[A, B] = Alist(p :: l)
-
-    def add(a: A, b: B): Alist[A, B] = add((a, b))
-
-    def find(a: A): Option[B] = {
-      @tailrec
-      def rec(lst: List[(A, B)]): Option[B] = lst match
-        case immutable.::((ha, hb), tail) => if (ha == a) Some(hb) else rec(tail)
-        case Nil => None
-
-      rec(l)
-    }
+    elo("forall x (P(x) and P(b) and c) -> d and e")
+    elo("a -> b -> c")
+    elo("(a -> b) -> c")
+    elo("a and b  and (a -> b) -> c")
+    elo("(a and b)  and (a -> b) -> c")
   }
 
 

@@ -1,7 +1,7 @@
 package pl.wojciechkarpiel.tableaux
 package lang
 
-import util.Gensym
+import util.{Gensym, Printing}
 
 sealed trait Term
 
@@ -12,14 +12,20 @@ object Term {
    */
   sealed trait Variable extends Term
 
-  case class NamedVar(name: String) extends Variable
+  case class NamedVar(name: String) extends Variable {
+    override def toString: String = name
+  }
 
   final case class Unifiable(gensym: Gensym) extends Variable {
     def this() = this(new Gensym())
+
+    override def toString: String = s"U$gensym"
   }
 
   case class InternVar private(gensym: Gensym) extends Variable {
     def this() = this(new Gensym())
+
+    override def toString: String = s"I$gensym"
   }
 
   /**
@@ -29,7 +35,11 @@ object Term {
     def arity: Int = args.size
 
     def isAtom: Boolean = arity == 0
+
+    override def toString: String = Printing.printFunctionLike(name.name, args)
   }
 
-  case class FunctionName(name: String) extends AnyVal
+  case class FunctionName(name: String) extends AnyVal {
+    override def toString: String = name
+  }
 }

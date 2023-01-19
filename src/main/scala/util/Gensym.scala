@@ -8,6 +8,8 @@ final case class Gensym private(id: Int) {
     this(Count)
     Count += 1
   }
+
+  override def toString: String = s"G$id"
 }
 
 object Gensym {
