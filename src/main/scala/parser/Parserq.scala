@@ -8,7 +8,8 @@ import lang.{Formula, Term}
 import org.parboiled2.*
 import org.parboiled2.support.hlist.{::, HList, HNil}
 
-import scala.annotation.compileTimeOnly
+import scala.annotation.{compileTimeOnly, tailrec}
+import scala.collection.immutable
 
 class Parserq(val input: ParserInput) extends Parser {
 
@@ -22,12 +23,30 @@ class Parserq(val input: ParserInput) extends Parser {
   //    rule(nonLeftRecursiveByNature ~ RRECSTUFF.?)
     lv2rec
 
-  def nonLeftRecursiveByNature: Rule1[Formula] = rule(parend | Pred)
+  def nonLeftRecursiveByNature: Rule1[Formula] = rule(parend | notR | frall | ex | Pred)
 
+  // todo quantbetween lv1 and lv2?
+  /*
+  \lnot is evaluated first
+  ∧ \land and ∨ \lor are evaluated next
+  Quantifiers are evaluated next
+  → \to is evaluated last.
+  */
+
+  def frall: Rule1[Formula] = rule(("forall") ~ WhiteSpace ~ variable ~ Formula ~> ((f: NamedVar, b: Formula) =>
+    ForAll(f, fixVariable(f, b))))
+
+  def ex: Rule1[Formula] = rule(("exists") ~ WhiteSpace ~ variable ~ Formula ~> ((f: NamedVar, b: Formula) =>
+    Exists(f, fixVariable(f, b))))
+
+
+  def variable: Rule1[NamedVar] = rule(Name ~> ((f: FunctionName) => NamedVar(f.name))) // hax
 
   def lvl0rec: Rule1[Formula] = nonLeftRecursiveByNature
 
   def lv1rec: Rule1[Formula] = rule(lvl0rec ~ (rrecAnd | rrecOr).?)
+  //  def lv1arec: Rule1[Formula] = rule(lvl1rec ~ (rrecAnd | rrecOr).?)
+
 
   def lv2rec: Rule1[Formula] = rule(lv1rec ~ (rrecEquiv | rrecImpies).?)
 
@@ -35,6 +54,10 @@ class Parserq(val input: ParserInput) extends Parser {
     rrecAnd | rrecOr |
       rrecEquiv | rrecImpies
   )
+
+  def notR: Rule1[Formula] = rule {
+    ("!" | "~" | "not") ~ WhiteSpace ~ Formula ~> ((f: Formula) => Not(f))
+  }
 
   def parend: Rule1[Formula] = rule(ws('(') ~ Formula ~ ws(')'))
 
@@ -126,6 +149,43 @@ object Parserq {
     val value = Parserq("a and b and c -> d and e").InputLine.run()
     println(value)
     println(Parserq("(a and b and c) -> d and e").InputLine.run())
-
+    println(Parserq("forall x (P(x) and P(b) and c) -> d and e").InputLine.run())
   }
+
+  final case class Alist[A, B] private(l: List[(A, B)]) {
+    def this() = this(Nil)
+
+    def add(p: (A, B)): Alist[A, B] = Alist(p :: l)
+
+    def add(a: A, b: B): Alist[A, B] = add((a, b))
+
+    def find(a: A): Option[B] = {
+      @tailrec
+      def rec(lst: List[(A, B)]): Option[B] = lst match
+        case immutable.::((ha, hb), tail) => if (ha == a) Some(hb) else rec(tail)
+        case Nil => None
+
+      rec(l)
+    }
+  }
+
+
+  def fixTerm(v: NamedVar, term: Term): Term = term match
+    case variable: Variable => variable
+    case f@Function(name, _) => /* fail if args>0 */ if (name.name == v.name) v else f
+
+
+  // see usage
+  def fixVariable(v: NamedVar, formula: Formula): Formula = formula match
+    case Equal(a, b) => Equal(fixTerm(v, a), fixTerm(v, b))
+    case Predicate(name, args) => Predicate(name, args.map(a => fixTerm(v, a)))
+    case Not(formula) => Not(fixVariable(v, formula))
+    case f@ForAll(variable, body) => (if variable == v then f /* shadowed */
+    else ForAll(variable, fixVariable(v, body)))
+    case e@Exists(variable, body) => (if variable == v then e /* shadowed */
+    else Exists(variable, fixVariable(v, body)))
+    case And(a, b) => And(fixVariable(v, a), fixVariable(v, b))
+    case Or(a, b) => Or(fixVariable(v, a), fixVariable(v, b))
+    case Equivalent(a, b) => Equivalent(fixVariable(v, a), fixVariable(v, b))
+    case Implies(premise, conclusion) => Implies(fixVariable(v, premise), fixVariable(v, conclusion))
 }
