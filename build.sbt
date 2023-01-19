@@ -5,5 +5,6 @@ ThisBuild / scalaVersion := "3.2.2"
 lazy val root = (project in file("."))
   .settings(
     name := "tableaux2",
-    idePackagePrefix := Some("pl.wojciechkarpiel.tableaux")
+    idePackagePrefix := Some("pl.wojciechkarpiel.tableaux"),
+    libraryDependencies += "org.parboiled" %% "parboiled" % "2.4.1",
   )

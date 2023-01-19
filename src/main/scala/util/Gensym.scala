@@ -3,13 +3,15 @@ package util
 
 import util.Gensym.Count
 
-case class Gensym private(id: Int)
+final case class Gensym private(id: Int) {
+  def this() = {
+    this(Count)
+    Count += 1
+  }
+}
 
 object Gensym {
-  def apply(): Gensym = {
-    Count += 1
-    Gensym(Count)
-  }
-
   private var Count = 0
+
+  def apply() = new Gensym()
 }

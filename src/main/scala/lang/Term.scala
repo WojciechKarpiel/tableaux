@@ -1,5 +1,5 @@
 package pl.wojciechkarpiel.tableaux
-package language
+package lang
 
 import util.Gensym
 
@@ -14,16 +14,12 @@ object Term {
 
   case class NamedVar(name: String) extends Variable
 
-  case class Unifiable private(gensym: Gensym) extends Variable
-
-  object Unifiable {
-    def apply(): Unifiable = new Unifiable(Gensym())
+  final case class Unifiable(gensym: Gensym) extends Variable {
+    def this() = this(new Gensym())
   }
 
-  case class InternVar private(gensym: Gensym) extends Variable
-
-  object InternVar {
-    def apply(): InternVar = new InternVar(Gensym())
+  case class InternVar private(gensym: Gensym) extends Variable {
+    def this() = this(new Gensym())
   }
 
   /**

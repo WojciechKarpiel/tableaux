@@ -1,7 +1,7 @@
 package pl.wojciechkarpiel.tableaux
-package language
+package lang
 
-import language.Term.Variable
+import lang.Term.Variable
 
 sealed trait Formula {
   def normalizeHead: Formula = this
@@ -9,7 +9,7 @@ sealed trait Formula {
 
 object Formula {
   /**
-   *  Equality. If the equality symbol is considered part of logic, and t1 and t2 are terms, then t1 = t2 is a formula.
+   * Equality. If the equality symbol is considered part of logic, and t1 and t2 are terms, then t1 = t2 is a formula.
    */
   case class Equal(a: Term, b: Term) extends Formula
 
