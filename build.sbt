@@ -7,4 +7,5 @@ lazy val root = (project in file("."))
     name := "tableaux2",
     idePackagePrefix := Some("pl.wojciechkarpiel.tableaux"),
     libraryDependencies += "org.parboiled" %% "parboiled" % "2.4.1",
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % "test",
   )

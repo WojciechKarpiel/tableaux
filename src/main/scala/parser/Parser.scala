@@ -33,11 +33,13 @@ class Parser(val input: ParserInput) extends ParboiledParser {
   → \to is evaluated last.
   */
 
-  def frall: Rule1[Formula] = rule(("∀" | safename("forall")) ~ WhiteSpace ~ variable ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
+  def frall: Rule1[Formula] = rule(("∀" | safename("forall")) ~ WhiteSpace ~ variable ~ optDot ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
     ForAll(f, fixVariable(f, b))))
 
-  def ex: Rule1[Formula] = rule(("∃" | safename("exists")) ~ WhiteSpace ~ variable ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
+  def ex: Rule1[Formula] = rule(("∃" | safename("exists")) ~ WhiteSpace ~ variable ~ optDot ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
     Exists(f, fixVariable(f, b))))
+
+  def optDot: Rule0 = rule(optional(ch('.')) ~ WhiteSpace)
 
 
   def variable: Rule1[NamedVar] = rule(Name ~> ((f: FunctionName) => NamedVar(f.name))) // hax
@@ -127,30 +129,6 @@ object Parser {
   private def NameCharS = CharPredicate.from(_.isUnicodeIdentifierStart)
 
   private def NameChar: CharPredicate = CharPredicate.from(_.isUnicodeIdentifierPart)
-
-  def main(args: Array[String]): Unit = {
-    println(Parser(" eloZiomq").InputLine.run())
-    println(Parser(" eloZiomq)(").InputLine.run())
-    println(Parser(" eloZiŁQomq").InputLine.run())
-    println(Parser(" ~eloZi~ŁQomq").InputLine.run())
-    println(Parser(" eloZiŁQomq ()").InputLine.run())
-    println(Parser(" eloZiŁQomq (").InputLine.run())
-    println(Parser(" eloZiŁQomq (he,qwe(), ddd(a,b, dq, a) )").InputLine.run())
-    println(Parser("a and b and c").InputLine.run())
-
-    def elo(value1: String): Unit =
-      val value = run(value1)
-      println("given: " + value1)
-      println("got:   " + value.get)
-
-    elo("a and b and c -> d and e")
-    println(Parser("(a and b and c) -> d and e").InputLine.run())
-    elo("forall x (P(x) and P(b) and c) -> d and e")
-    elo("a -> b -> c")
-    elo("(a -> b) -> c")
-    elo("a and b  and (a -> b) -> c")
-    elo("(a and b)  and (a -> b) -> c")
-  }
 
   def run(input: ParserInput): Try[Formula] = Parser(input).InputLine.run()
 
