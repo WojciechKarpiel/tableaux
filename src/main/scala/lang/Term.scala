@@ -38,10 +38,10 @@ object Term {
 
     override def toString: String = Printing.printFunctionLike(name.name, args)
 
-    def jName: String = name.name;
+    def jName: Variable = name.name
   }
 
-  case class FunctionName(name: String) extends AnyVal {
-    override def toString: String = name
+  case class FunctionName(name: Variable) extends AnyVal {
+    override def toString: String = name.toString
   }
 }

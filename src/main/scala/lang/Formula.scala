@@ -1,7 +1,7 @@
 package pl.wojciechkarpiel.tableaux
 package lang
 
-import lang.Term.Variable
+import lang.Term.{NamedVar, Variable}
 import util.Printing
 
 sealed trait Formula {
@@ -29,7 +29,7 @@ object Formula {
 
     def isAtomic: Boolean = arity == 0
 
-    override def toString: String = Printing.printFunctionLike(name.name, args)
+    override def toString: String = Printing.printFunctionLike(NamedVar(name.name), args)
 
     def jName: String = name.name
   }

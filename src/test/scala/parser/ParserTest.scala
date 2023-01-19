@@ -15,10 +15,10 @@ import scala.collection.mutable.Stack
 class ParserTest extends AnyFlatSpec with should.Matchers {
 
   private val x = NamedVar("x")
-  private val f = FunctionName("f")
-  private val d: Function = Function(FunctionName("d"), Seq())
-  private val b = Function(FunctionName("b"), Seq())
-  private val c = Function(FunctionName("c"), Seq())
+  private val f = FunctionName(NamedVar("f"))
+  private val d: Function = Function(FunctionName(NamedVar("d")), Seq())
+  private val b = Function(FunctionName(NamedVar("b")), Seq())
+  private val c = Function(FunctionName(NamedVar("c")), Seq())
   private val P = PredicateName("P")
   private val E = PredicateName("E")
   private val A = Predicate(PredicateName("A"), Seq())

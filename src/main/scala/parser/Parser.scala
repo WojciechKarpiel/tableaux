@@ -42,7 +42,7 @@ class Parser(val input: ParserInput) extends ParboiledParser {
   def optDot: Rule0 = rule(optional(ch('.')) ~ WhiteSpace)
 
 
-  def variable: Rule1[NamedVar] = rule(Name ~> ((f: FunctionName) => NamedVar(f.name))) // hax
+  def variable: Rule1[NamedVar] = rule(Name ~> ((f: FunctionName) => (f.name.asInstanceOf[NamedVar]))) // hax
 
   def lvl0rec: Rule1[Formula] = nonLeftRecursiveByNature
 
@@ -86,13 +86,13 @@ class Parser(val input: ParserInput) extends ParboiledParser {
 
 
   def Pred: Rule1[Predicate] = rule { // hax
-    Fn ~> (fn => Predicate(PredicateName(fn.name.name), fn.args))
+    Fn ~> ((fn: Function) => Predicate(PredicateName(fn.name.name.asInstanceOf[NamedVar].name), fn.args))
   }
 
   def wordBoundary: Rule0 = rule(!Parser.NameChar)
 
   def Name: Rule1[FunctionName] =
-    rule((capture(Parser.NameCharS ~ zeroOrMore(Parser.NameChar) ~ !Parser.NameChar) ~> (s => FunctionName(s))) ~ (WhiteSpace))
+    rule((capture(Parser.NameCharS ~ zeroOrMore(Parser.NameChar) ~ !Parser.NameChar) ~> (s => FunctionName(NamedVar(s)))) ~ (WhiteSpace))
 
 
   def safename(string: String): Rule0 = rule(string ~ wordBoundary)
@@ -135,7 +135,7 @@ object Parser {
 
   def fixTerm(v: NamedVar, term: Term): Term = term match
     case variable: Variable => variable
-    case f@Function(name, _) => /* fail if args>0 */ if (name.name == v.name) v else f
+    case f@Function(name, _) => /* fail if args>0 */ if (name.name == v) v else f
 
 
   // see usage
