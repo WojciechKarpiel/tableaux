@@ -110,8 +110,8 @@ final class Tree(val formula: Formula) {
       newPred ++ node.parent.map(findNegatedPredicates).getOrElse(Seq())
     }
 
-    val preds = findPredicates(tip)
-    val negated = findNegatedPredicates(tip)
+    val preds = findPredicates(tip).distinct
+    val negated = findNegatedPredicates(tip).distinct
     preds.map(FormulaInterop(_)).flatMap { pred =>
       negated.map(FormulaInterop(_)).flatMap { negPred =>
         val result = Unifier.unify(pred, negPred)
@@ -157,14 +157,14 @@ final class Tree(val formula: Formula) {
           Unifier.unify(candA, candB) match {
             case UnificationResult.UnificationFailure => loop(myC.tail)
             case UnificationResult.UnificationSuccess(substitution) => {
-              val backup = backupFormulas(rootNode)
+              backupFormulas(rootNode)
               propc(rootNode, substitution)
               val rest = candidates.tail.map(propcHHH(_, substitution))
 
               val ok = hardcoreSolve(rest)
               if ok then true //solution found
               else {
-                revertlol(rootNode, backup)
+                revertlol(rootNode)
                 loop(myC.tail)
               }
             }
@@ -176,15 +176,14 @@ final class Tree(val formula: Formula) {
     }
 
   // todo ohyda
-  private def backupFormulas(node: Node): Map[NodeId, Formula] = {
-    Map(node.id -> node.formula) ++ {
-      node.children.map(backupFormulas).fold(Map())(_ ++ _)
-    }
+  private def backupFormulas(node: Node): Unit = {
+    node.pushBackup()
+    node.children.foreach(backupFormulas)
   }
 
-  private def revertlol(node: Node, m: Map[NodeId, Formula]): Unit = {
-    node.formula = m.getOrElse(node.id, node.formula)
-    node.children.foreach(revertlol(_, m))
+  private def revertlol(node: Node): Unit = {
+    node.popBakcup()
+    node.children.foreach(revertlol)
   }
 
   private def propc(node: Node, sub: Substitution): Unit = {

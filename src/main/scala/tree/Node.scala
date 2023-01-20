@@ -6,6 +6,8 @@ import tree.Node.NodeId
 import tree.RuleType.Gamma
 import util.Gensym
 
+import scala.collection.mutable
+
 final class Node private(var formula: Formula, val parent: Option[Node], val originator: Option[Node]) {
 
   def this(formula: Formula, parent: Node, originator: Node) = this(formula, Some(parent), Some(originator))
@@ -13,6 +15,12 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
   val id = new NodeId()
 
   val originalFormula: Formula = formula
+
+  private val backup = new mutable.Stack[Formula]()
+
+  def pushBackup(): Unit = backup.push(formula)
+
+  def popBakcup(): Unit = formula = backup.pop()
 
   private var hasExpanded: Boolean = false
 
