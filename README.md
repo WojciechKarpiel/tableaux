@@ -18,7 +18,7 @@ ale ja nie polecam ściągać z tamtąd książek, bo to nielegalne.
 
 Najszybciej (wymaga [SBT](https://www.scala-sbt.org/)):
 
-```shell
+```
 sbt run
 ```
 
@@ -26,14 +26,14 @@ sbt run
 
 ### Obraz kontenerowy:
 
-```shell
+```
 sbt 'Docker / publishLocal'
 ```
 
 W logach dostaniesz namiar na wybudowany obraz, n.p. `localhost/tableaux:0.2.0-SNAPSHOT`.
 Potem już tylko odpalić:
 
-```shell
+```
 podman run -it --rm localhost/tableaux:0.2.0-SNAPSHOT
 ```
 
@@ -41,11 +41,19 @@ podman run -it --rm localhost/tableaux:0.2.0-SNAPSHOT
 
 Możesz se wybudować `zip`a z potrzebnymi jarkami i skryptem uruchomieniowym:
 
-```shell
+```
 sbt 'show Universal / packageBin'
 ```
 
 W logach dostaniesz namiar na plik.
+
+### Szaleństwo dla wszystkich - rdzenny program
+
+Tylko dla użytkowników [Graala](https://www.graalvm.org/):
+
+```
+sbt 'GraalVMNativeImage / packageBin'
+```
 
 ## Chcę użyć `Tableaux` jako biblioteki w moim programie
 
