@@ -42,6 +42,8 @@ object Formula {
 
   case class PredicateName(name: String) extends AnyVal {
     override def toString: String = name
+
+    def apply(args: Term*): Predicate = Predicate(this, args)
   }
 
   /**

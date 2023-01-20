@@ -269,3 +269,8 @@ final class Tree(val formula: Formula, debug: Boolean) {
     lp(rootNode)
   }
 }
+object Tree {
+  def isTautology(formula: String, searchBound: Int): Boolean = new Tree(formula).solve(searchBound)
+
+  def isTautology(formula: Formula, searchBound: Int): Boolean = new Tree(formula).solve(searchBound)
+}

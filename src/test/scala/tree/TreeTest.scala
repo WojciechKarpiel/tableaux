@@ -64,7 +64,7 @@ class TreeTest extends AnyFlatSpec with should.Matchers {
   }
 
   def testSolvable(input: String, searchBound: Int, expected: Boolean = true): Unit =
-    new Tree(input).solve(searchBound) should be(expected)
+    Tree.isTautology(input, searchBound) should be(expected)
 
   it should "random cases 2" in {
     val ok = "∀x.(∃y.((P(x) ⇔ P(y))))";

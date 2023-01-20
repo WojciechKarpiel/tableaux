@@ -47,5 +47,7 @@ object Term {
 
   case class FunctionName(name: Variable) extends AnyVal {
     override def toString: String = name.toString
+
+    def apply(args: Term*): Function = Function(this, args)
   }
 }
