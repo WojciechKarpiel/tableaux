@@ -30,11 +30,6 @@ class ParserTest extends AnyFlatSpec with should.Matchers {
   private val D = Predicate(PredicateName("D"), Seq())
 
 
-  it should "failing cases" in {
-    test("~A and B", And(Not(A), B))
-    test("N(O) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(O))))", Parser.run("(N(O) ∧ (∀i.((N(i) ⇒ N(s(i))))) ⇒ N(s(s(s(O)))))").get)
-  }
-
   "A Parser" should "parse stuff" in {
     Parser.run("forall x. P(x) && ~E(f(c))").get should be(ForAll(x, And(Predicate(P, Seq(x)), Not(Predicate(E, Seq(Function(f, Seq(c))))))))
     Parser.run("A and B  and (A -> B) -> C").get should be(Implies(And(A, And(B, Implies(A, B))), C))
@@ -43,6 +38,11 @@ class ParserTest extends AnyFlatSpec with should.Matchers {
     Implies(ForAll(x, And(Predicate(P, Seq(x)), And(Predicate(P, Seq(b)), C))), And(D, A))
   }
 
+
+  it should "failing cases" in {
+    test("~A and B", And(Not(A), B))
+    test("N(O) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(O))))", Parser.run("(N(O) ∧ (∀i.((N(i) ⇒ N(s(i))))) ⇒ N(s(s(s(O)))))").get)
+  }
 
   private def test(input: String, expected: Formula): Unit = {
     val p = Parser(input)

@@ -79,10 +79,10 @@ class Parser(val input: ParserInput) extends ParboiledParser {
     rule(("<->" | "<=>" | "⇔") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Equivalent(a, b)))
 
   def rrecOr: FtoF =
-    rule((safename("or") | "∨" | "||") ~ WhiteSpace ~ lv1rec ~> ((a: Formula, b: Formula) => Or(a, b)))
+    rule((safename("or") | "∨" | "||") ~ WhiteSpace ~ lv1Arec ~> ((a: Formula, b: Formula) => Or(a, b)))
 
   def rrecAnd: FtoF =
-    rule((safename("and") | "∧" | "&&") ~ WhiteSpace ~ lv1rec ~> ((a: Formula, b: Formula) => And(a, b)))
+    rule((safename("and") | "∧" | "&&") ~ WhiteSpace ~ lv1Arec ~> ((a: Formula, b: Formula) => And(a, b)))
 
 
   def Pred: Rule1[Predicate] = rule { // hax
