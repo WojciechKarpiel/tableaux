@@ -46,4 +46,20 @@ class TreeTest extends AnyFlatSpec with should.Matchers {
   }
 
 
+  it should "handle some random cases" in {
+    val pcz = "(forall x. Id(x, x))"
+    val dcza = "(forall x. exists y. Id(x,y))"
+    val dczaNie = "(exists x. forall y. Id(x,y))"
+
+    val ok = s"$pcz -> $dcza"
+    val nOk = s"( $pcz -> $dczaNie)"
+
+    val tOk = new Tree(ok)
+    val rNok = new Tree(nOk)
+    val rNok2 = new Tree("~(" + nOk + ")")
+
+    assert(tOk.solve(1))
+    assert(!rNok2.solve(2))
+    assert(!rNok2.solve(2))
+  }
 }

@@ -59,7 +59,7 @@ class Parser(val input: ParserInput) extends ParboiledParser {
   )
 
   def notR: Rule1[Formula] = rule {
-    ("!" | "~" | "¬" | safename("not")) ~ WhiteSpace ~ Formula ~> ((f: Formula) => Not(f))
+    ("!" | "~" | "¬" | safename("not")) ~ WhiteSpace ~ lvl0rec ~> ((f: Formula) => Not(f))
   }
 
   def parend: Rule1[Formula] = rule(ws('(') ~ Formula ~ ws(')'))
@@ -119,6 +119,8 @@ class Parser(val input: ParserInput) extends ParboiledParser {
 
   def WhiteSpace: Rule0 = rule(zeroOrMore(WhiteSpaceChar))
 
+
+  def doRun(): Try[Formula] = InputLine.run()
 }
 
 object Parser {
