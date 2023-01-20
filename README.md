@@ -52,7 +52,7 @@ W logach dostaniesz namiar na plik.
 Tylko dla użytkowników [Graala](https://www.graalvm.org/):
 
 ```
-sbt 'GraalVMNativeImage / packageBin'
+sbt 'show GraalVMNativeImage / packageBin'
 ```
 
 ## Chcę użyć `Tableaux` jako biblioteki w moim programie
