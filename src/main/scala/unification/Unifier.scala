@@ -6,13 +6,14 @@ import lang.Term
 import lang.Term.{NamedVar, Variable}
 import unification.Unifier.UnificationResult.{UnificationFailure, UnificationSuccess}
 import unification.Unifier.UnifierTerm.*
+import util.MetadataHolder
 
 import scala.annotation.{tailrec, targetName}
 
 object Unifier {
 
   enum UnifierTerm:
-    case Tree(name: Variable, branches: Seq[UnifierTerm], metaFn: Boolean) //todo rm meta
+    case Tree(name: Variable, branches: Seq[UnifierTerm], metadata: MetadataHolder) // TODO remove need for metadata
     case Unifiable(id: Term.Unifiable)
 
   opaque type Substitution = Seq[(Unifiable, UnifierTerm)]
@@ -30,10 +31,9 @@ object Unifier {
 
     def isEmpty: Boolean = substitution.isEmpty
 
-    private def concat(other: Substitution): Substitution = substitution ++ other
+    def map[T](f: (Unifiable, UnifierTerm) => T): Seq[T] = substitution.map { case (k, v) => f(k, v) }
 
-    // TODO forbid
-    def raw: Seq[(Unifiable, UnifierTerm)] = substitution
+    private def concat(other: Substitution): Substitution = substitution ++ other
   }
 
   object Substitution {
