@@ -36,6 +36,8 @@ object Formula {
 
   object Predicate {
     def apply(name: PredicateName, arg: Term): Predicate = Predicate(name, Seq(arg))
+
+    def constant(name: PredicateName): Predicate = Predicate(name, Seq())
   }
 
   case class PredicateName(name: String) extends AnyVal {

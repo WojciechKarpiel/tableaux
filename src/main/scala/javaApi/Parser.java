@@ -14,9 +14,4 @@ public class Parser {
     static Formula parse(char[] input) throws ParseError {
         return JParser.parseTry(input).get();
     }
-
-    public static void main(String[] args) {
-        System.out.println(parse("a and b"));
-        System.out.println(parse("a and (b"));
-    }
 }

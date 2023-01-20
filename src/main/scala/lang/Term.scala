@@ -41,6 +41,10 @@ object Term {
     def jName: Variable = name.name
   }
 
+  object Function {
+    def constant(name: FunctionName): Function = Function(name, Seq())
+  }
+
   case class FunctionName(name: Variable) extends AnyVal {
     override def toString: String = name.toString
   }
