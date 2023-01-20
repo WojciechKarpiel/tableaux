@@ -10,27 +10,34 @@ object Main {
 
   def main(args: Array[String]): Unit = {
 
+    var maxSearchDepth = 4
+
     println("Spróbuj wpisać jakie co, na przykład:")
     println("Paradoks barowy: jeśli jeden pije, to wszyscy piją")
     println("exists x. forall y. (Pije(x) => Pije(y))")
     println("Albo udowodnij istnienie liczby 3")
     println("N(O) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(O))))")
-
-    val maxSearchDepth = 4
+    println(s"Głębokość poszukiwań to $maxSearchDepth")
+    println(s"Żeby ją zmienić podaj liczbę zamiast formuły logicznej")
 
     @tailrec
     def loop(): Unit = {
       print("> ")
       val input = readLine()
       if (input != null && input.nonEmpty) {
-        val startTime = System.nanoTime()
-        val tree = new Tree(input)
-        val proven = tree.solve(maxSearchDepth)
-        val endTime = System.nanoTime()
-        val response = if proven then s"To prawda, że ${tree.formula}"
-        else s"Nie udało mi się udowodnić, że ${tree.formula} (głębokość szukania: $maxSearchDepth)"
-        println(response)
-        println(s"Operacja zajęła ${formatTime(endTime - startTime)}")
+        input.toIntOption match
+          case Some(newBound) =>
+            println(s"Nowa głębokość poszukiwań: $newBound (było: $maxSearchDepth)")
+            maxSearchDepth = newBound
+          case None =>
+            val startTime = System.nanoTime()
+            val tree = new Tree(input)
+            val proven = tree.solve(maxSearchDepth)
+            val endTime = System.nanoTime()
+            val response = if proven then s"To prawda, że ${tree.formula}"
+            else s"Nie udało mi się udowodnić, że ${tree.formula} (głębokość szukania: $maxSearchDepth)"
+            println(response)
+            println(s"Operacja zajęła ${formatTime(endTime - startTime)}")
         loop()
       }
     }
@@ -42,7 +49,7 @@ object Main {
   private def formatTime(nanos: Long) = {
     val bse = 1000L
 
-    def shft(x: Long): Int = if x == 0 then -1 else (1 + shft(x / bse))
+    def shft(x: Long): Int = if x == 0 then -1 else 1 + shft(x / bse)
 
     def naivePow(base: Long, exp: Long): Long = if exp == 0 then 1 else base * naivePow(base, exp - 1)
 

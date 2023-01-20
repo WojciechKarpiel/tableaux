@@ -13,6 +13,7 @@ import unification.{FormulaInterop, Unifier}
 import org.parboiled2.ParseError
 
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success}
 
@@ -21,10 +22,9 @@ final class Tree(val formula: Formula, debug: Boolean) {
 
   def this(formula: String, debug: Boolean) = this({
     Parser.run(formula) match
-      case Failure(exception) => {
+      case Failure(exception) =>
         println(new Parser(formula).formatError(exception.asInstanceOf[ParseError]))
         throw exception
-      }
       case Success(value) => value
   }, debug)
 
@@ -145,13 +145,17 @@ final class Tree(val formula: Formula, debug: Boolean) {
 
   @tailrec
   def solve(maxGammaExpansions: Int): Boolean = {
-    expandNonGamma();
+    expandNonGamma()
     val tips = findTips
-    val cnds = tips.map(branchClosingUnifiables);
+    val cndsq = tips.map(branchClosingUnifiables)
+    val cnds = reduceq(cndsq)
     doDebug {
+      val q = cndsq.map(_.toVector).toVector
       val ccc = cnds.map(_.toVector).toVector
       val szs = ccc.map(_.size)
-      println(szs)
+      val wasPointless = q.map(_.toSet) == ccc.map(_.toSet)
+      println(wasPointless.toString + " " + szs)
+
 
     }
     val ok = hardcoreSolve(cnds)
@@ -168,13 +172,46 @@ final class Tree(val formula: Formula, debug: Boolean) {
     }
   }
 
+  private def hasFreeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean = {
+    v.exists { case (a, b) => Unifier.unify(a, b) match
+      case UnificationResult.UnificationFailure => false
+      case UnificationResult.UnificationSuccess(substitution) => substitution.isEmpty
+    }
+  }
+
+  private def reduceq(value: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Seq[Seq[(UnifierTerm, UnifierTerm)]] = {
+
+    if value.isEmpty then Seq() else {
+      val myStuff = value.head
+
+      val hasContantUnif = hasFreeUnif(myStuff)
+      if (hasContantUnif) reduceq(value.tail) // only tail
+      else {
+        @tailrec
+        def dedup(soFar: List[(UnifierTerm, UnifierTerm)], toDo: Seq[(UnifierTerm, UnifierTerm)]): Seq[(UnifierTerm, UnifierTerm)] = {
+          if toDo.isEmpty then soFar else {
+            val (a, b) = toDo.head
+            if (soFar.contains((a, b)) || soFar.contains((b, a))) dedup(soFar, toDo.tail)
+            else dedup(toDo.head :: soFar, toDo.tail)
+          }
+        }
+
+        val dd = dedup(Nil, myStuff)
+        dd +: reduceq(value.tail)
+      }
+    }
+  }
+
   /**
    * This is v bad to fix later
    *
    * @return true if ok
    */
   private def hardcoreSolve(candidates: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Boolean =
-    if candidates.isEmpty then true else {
+    if candidates.isEmpty then {
+      doDebug(println("koniec"))
+      true
+    } else {
       val myPart = candidates.head
 
 
@@ -185,26 +222,32 @@ final class Tree(val formula: Formula, debug: Boolean) {
           val (candA, candB) = myC.head
           Unifier.unify(candA, candB) match {
             case UnificationResult.UnificationFailure => loop(myC.tail)
-            case UnificationResult.UnificationSuccess(substitution) => {
+            case UnificationResult.UnificationSuccess(substitution) =>
               backupFormulas(rootNode)
               propc(rootNode, substitution)
               val rest = candidates.tail.map(propcHHH(_, substitution))
 
               val ok = hardcoreSolve(rest)
-              if ok then true //solution found
+              if ok then {
+                doDebug(println(s"znalazłem $candA - $candB"))
+                true
+              } //solution found
               else {
                 revertlol(rootNode)
                 loop(myC.tail)
               }
-            }
           }
         }
       }
 
-      loop(myPart)
+      if (hasFreeUnif(myPart)) { // ta optymalizacja jest potężna!!!
+        val rest = candidates.tail
+        doDebug(println(s"this layer is free (remaining:${rest.size})  - continuing"))
+        hardcoreSolve(candidates.tail)
+      } else loop(myPart)
     }
 
-  private def doDebug(code: => Unit) = if debug then code
+  private def doDebug(code: => Unit): Unit = if debug then code
 
   // todo ohyda
   private def backupFormulas(node: Node): Unit = {
@@ -269,6 +312,7 @@ final class Tree(val formula: Formula, debug: Boolean) {
     lp(rootNode)
   }
 }
+
 object Tree {
   def isTautology(formula: String, searchBound: Int): Boolean = new Tree(formula).solve(searchBound)
 

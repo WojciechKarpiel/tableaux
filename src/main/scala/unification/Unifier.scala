@@ -1,12 +1,11 @@
 package pl.wojciechkarpiel.tableaux
 package unification
 
+import lang.Formula.Predicate
+import lang.Term
 import lang.Term.{NamedVar, Variable}
 import unification.Unifier.UnificationResult.{UnificationFailure, UnificationSuccess}
 import unification.Unifier.UnifierTerm.*
-
-import pl.wojciechkarpiel.tableaux.lang.Formula.Predicate
-import pl.wojciechkarpiel.tableaux.lang.Term
 
 import scala.annotation.{tailrec, targetName}
 
@@ -28,6 +27,8 @@ object Unifier {
     }
 
     def size: Int = substitution.size
+
+    def isEmpty: Boolean = substitution.isEmpty
 
     private def concat(other: Substitution): Substitution = substitution ++ other
 
