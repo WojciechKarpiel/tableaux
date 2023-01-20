@@ -27,13 +27,16 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
   var children: Seq[Node] = Seq()
   var originated: Seq[Node] = Seq()
 
-  def canExpand: Boolean = !hasExpanded || RuleType(formula) == Gamma
+  var blocked = false
+
+  def canExpand: Boolean = !blocked && (!hasExpanded || RuleType(formula) == Gamma)
 
   def restoreOriginalFormula(): Unit = formula = originalFormula
 
   def expand(): Boolean = {
     val willExpand = canExpand
     if willExpand then {
+      blocked = true
       hasExpanded = true
       val expansion = Expansion(formula)
       findTips.foreach { tip =>

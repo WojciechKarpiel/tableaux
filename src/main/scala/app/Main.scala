@@ -3,19 +3,54 @@ package app
 
 import tree.Tree
 
+import scala.annotation.tailrec
+import scala.io.StdIn.readLine
+
 object Main {
 
   def main(args: Array[String]): Unit = {
 
-    val nats = "N(O) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(O))))"
-    val barowy = "exists x. forall y. (Pije(x) => Pije(y))"
+    println("Spróbuj wpisać jakie co, na przykład:")
+    println("Paradoks barowy: jeśli jeden pije, to wszyscy piją")
+    println("exists x. forall y. (Pije(x) => Pije(y))")
+    println("Albo udowodnij istnienie liczby 3")
+    println("N(O) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(O))))")
 
-    val tb = new Tree(barowy)
-    println(tb.solve(2))
-    tb.printTree()
+    val maxSearchDepth = 4
 
-    val tn = new Tree(nats)
-    println(tn.solve(3))
-    tn.printTree()
+    @tailrec
+    def loop(): Unit = {
+      print("> ")
+      val input = readLine()
+      if (input != null && input.nonEmpty) {
+        val startTime = System.nanoTime()
+        val tree = new Tree(input)
+        val proven = tree.solve(maxSearchDepth)
+        val endTime = System.nanoTime()
+        val response = if proven then s"To prawda, że ${tree.formula}"
+        else s"Nie udało mi się udowodnić, że ${tree.formula} (głębokość szukania: $maxSearchDepth)"
+        println(response)
+        println(s"Operacja zajęła ${formatTime(endTime - startTime)}")
+        loop()
+      }
+    }
+
+    loop()
   }
+
+
+  private def formatTime(nanos: Long) = {
+    val bse = 1000L
+
+    def shft(x: Long): Int = if x == 0 then -1 else (1 + shft(x / bse))
+
+    def naivePow(base: Long, exp: Long): Long = if exp == 0 then 1 else base * naivePow(base, exp - 1)
+
+    val s = shft(nanos)
+    val u = units(s)
+    val c = naivePow(bse, s)
+    s"${nanos / c},${nanos % c}$u"
+  }
+
+  private val units = Seq("s", "ms", "μs", "ns").reverse
 }

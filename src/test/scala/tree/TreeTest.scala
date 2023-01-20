@@ -59,7 +59,29 @@ class TreeTest extends AnyFlatSpec with should.Matchers {
     val rNok2 = new Tree("~(" + nOk + ")")
 
     assert(tOk.solve(1))
+    assert(!rNok.solve(2))
     assert(!rNok2.solve(2))
-    assert(!rNok2.solve(2))
+  }
+
+  def testSolvable(input: String, searchBound: Int, expected: Boolean = true): Unit =
+    new Tree(input).solve(searchBound) should be(expected)
+
+  it should "random cases 2" in {
+    val ok = "∀x.(∃y.((P(x) ⇔ P(y))))";
+    val unprovable = "∃x.(∀y.((P(x) ⇔ P(y))))";
+
+    testSolvable(ok, 1, true)
+    testSolvable(unprovable, 2, false)
+    testSolvable(s"~($unprovable)", 2, false)
+
+  }
+
+  it should "delay unification until a solution is found" in {
+    val ss =
+      Seq(
+        "~(forall x. (P(a) and P(x) and (~P(a) or ~P(b))))",
+        "~(forall x. (P(a) and P(x) and (~P(a) or ~P(b))))",
+      )
+    assert(ss.forall(s => new Tree(s).solve(1)))
   }
 }

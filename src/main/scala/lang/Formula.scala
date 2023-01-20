@@ -34,6 +34,10 @@ object Formula {
     def jName: String = name.name
   }
 
+  object Predicate {
+    def apply(name: PredicateName, arg: Term): Predicate = Predicate(name, Seq(arg))
+  }
+
   case class PredicateName(name: String) extends AnyVal {
     override def toString: String = name
   }
@@ -56,11 +60,11 @@ object Formula {
   }
 
   case class ForAll(variable: Variable, body: Formula) extends NormalizedHeadFormula {
-    override def toString: String = "∀" + variable + " (" + body + ")"
+    override def toString: String = "∀" + variable + ".(" + body + ")"
   }
 
   case class Exists(variable: Variable, body: Formula) extends NormalizedHeadFormula {
-    override def toString: String = "∃" + variable + " (" + body + ")"
+    override def toString: String = "∃" + variable + ".(" + body + ")"
   }
 
   case class And(a: Formula, b: Formula) extends NormalizedHeadFormula {

@@ -36,6 +36,10 @@ class ParserTest extends AnyFlatSpec with should.Matchers {
     Parser.run("A -> B -> C").get should be(Implies(A, Implies(B, C)))
     Parser.run("forall x P(x) and P(b) and C -> D and A").get should be
     Implies(ForAll(x, And(Predicate(P, Seq(x)), And(Predicate(P, Seq(b)), C))), And(D, A))
+
+
+    test("~(forall x. (P(d) and P(x) and (~P(d) or ~P(b))))",
+      Not(ForAll(x, And(Predicate(P, d), And(Predicate(P, x), Or(Not(Predicate(P, d)), Not(Predicate(P, b))))))))
   }
 
 

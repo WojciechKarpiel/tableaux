@@ -1,48 +1,69 @@
 package pl.wojciechkarpiel.tableaux
 package tree
 
-import lang.{Formula, NormalizedHeadFormula, Term}
 import lang.Formula.*
+import lang.Term.NamedVar
+import lang.{Formula, NormalizedHeadFormula, Term}
 import parser.Parser
+import tree.Node.{NodeId, root}
 import tree.RuleType.Gamma
+import unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
+import unification.{FormulaInterop, Unifier}
 
 import org.parboiled2.ParseError
-import pl.wojciechkarpiel.tableaux.tree.Node.{NodeId, root}
-import pl.wojciechkarpiel.tableaux.unification.{FormulaInterop, Unifier}
-import pl.wojciechkarpiel.tableaux.unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success}
 
-final class Tree(val formula: Formula) {
-  def this(formula: String) = this({
+final class Tree(val formula: Formula, debug: Boolean) {
+  def this(formula: Formula) = this(formula, false)
+
+  def this(formula: String, debug: Boolean) = this({
     Parser.run(formula) match
       case Failure(exception) => {
         println(new Parser(formula).formatError(exception.asInstanceOf[ParseError]))
         throw exception
       }
       case Success(value) => value
-  })
+  }, debug)
+
+  def this(formula: String) = this(formula, false)
 
   private val rootNode: Node = Node.root(Not(formula))
 
 
-  def expandNonGamma(): Unit = {
+  /**
+   *
+   * @return true if anything was expanded
+   */
+  def expand(forbidden: Set[RuleType]): Boolean = {
+    var anyExpansionChange = false
+
     @tailrec
     def loop(): Unit = {
-      val anyChanged = RuleType.values.filterNot(_ == Gamma).exists(expandAll)
+      val anyChanged = RuleType.values.filterNot(forbidden.contains).exists(expandAll)
+      anyExpansionChange = anyExpansionChange || anyChanged
       if anyChanged then loop()
     }
 
     loop()
+
+    def unblock(node: Node): Unit = {
+      node.blocked = false
+      node.children.foreach(unblock)
+    }
+
+    unblock(rootNode)
+    anyExpansionChange
   }
 
   /**
    * returns true if anything was expanded
    */
-  def expandGammaOnce(): Boolean = expandAll(Gamma)
+  def expandGammaOnce(): Boolean = expand(Set())
 
+  def expandNonGamma(): Boolean = expand(Set(Gamma))
 
   /**
    *
@@ -53,8 +74,8 @@ final class Tree(val formula: Formula) {
 
     def traverse(n: Node): Unit = {
       if (n.ruleType == ruleType) {
-        if (n.ruleType == Gamma) {
-          println("expanding gammma " + n.formula)
+        doDebug {
+          if (n.ruleType == Gamma) println("expanding gammma " + n.formula)
         }
         val bool = n.expand() // shortcirtu D:
         changed = changed || bool
@@ -126,14 +147,22 @@ final class Tree(val formula: Formula) {
   def solve(maxGammaExpansions: Int): Boolean = {
     expandNonGamma();
     val tips = findTips
-    val cnds = tips.map(branchClosingUnifiables)
+    val cnds = tips.map(branchClosingUnifiables);
+    doDebug {
+      val ccc = cnds.map(_.toVector).toVector
+      val szs = ccc.map(_.size)
+      println(szs)
+
+    }
     val ok = hardcoreSolve(cnds)
     if ok then true else if maxGammaExpansions == 0 then {
-      printTree()
-      printLinear();
+      doDebug {
+        printTree()
+        printLinear()
+      }
       false
     } else {
-      println("expanding gammas!!!!!")
+      doDebug(println("expanding gammas!!!!!"))
       val worthTryingAgain = expandGammaOnce()
       if worthTryingAgain then solve(maxGammaExpansions - 1) else false
     }
@@ -147,7 +176,7 @@ final class Tree(val formula: Formula) {
   private def hardcoreSolve(candidates: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Boolean =
     if candidates.isEmpty then true else {
       val myPart = candidates.head
-      val res = candidates.tail
+
 
       @tailrec
       def loop(myC: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean = {
@@ -174,6 +203,8 @@ final class Tree(val formula: Formula) {
 
       loop(myPart)
     }
+
+  private def doDebug(code: => Unit) = if debug then code
 
   // todo ohyda
   private def backupFormulas(node: Node): Unit = {

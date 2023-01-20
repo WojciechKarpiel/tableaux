@@ -25,13 +25,9 @@ class IdTest extends AnyFlatSpec with should.Matchers {
     val testRefl = idBasics + " -> Id(a, a)"
     val testSym = idBasics + " -> ( Id(a, b) -> Id(b,a) )"
     val testTrans = idBasics + " -> ( Id(a,b) -> Id(b,c) -> Id(a,c) )"
-    System.out.println(testRefl.replace('\n', ' '))
-    System.out.println(testSym.replace('\n', ' '))
-    System.out.println(testTrans.replace('\n', ' '))
 
     assert(Seq(testRefl, testSym, testTrans).forall { s =>
       val t: Tree = new Tree(s)
-      println(t.formula)
       t.solve(3)
     })
 
