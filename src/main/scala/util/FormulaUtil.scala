@@ -27,7 +27,10 @@ object FormulaUtil {
 
   def freeVariables(formula: Formula, scopedVariables: Set[Variable]): Set[Variable] =
     formula.normalizeHead match
-      case Predicate(_, args) => args.map(termFreeVariables).fold(Set())(_ ++ _).diff(scopedVariables)
+      case Predicate(_, args) =>
+        val value = args.map(termFreeVariables)
+        val r = value.fold(Set())(_ ++ _).diff(scopedVariables)
+        r
       case Not(formula) => freeVariables(formula, scopedVariables)
       case ForAll(variable, body) => freeVariables(body, scopedVariables + variable)
       case Exists(variable, body) => freeVariables(body, scopedVariables + variable)

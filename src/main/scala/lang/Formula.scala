@@ -47,8 +47,8 @@ object Formula {
 
     override def normalizeHead: NormalizedHeadFormula = formula.normalizeHead match {
       case Not(formula) => formula.normalizeHead
-      case ForAll(variable, body) => Exists(variable, body).normalizeHead
-      case Exists(variable, body) => ForAll(variable, body).normalizeHead
+      case ForAll(variable, body) => Exists(variable, Not(body)).normalizeHead
+      case Exists(variable, body) => ForAll(variable, Not(body)).normalizeHead
       case And(a, b) => Or(Not(a), Not(b)).normalizeHead
       case Or(a, b) => And(Not(a), Not(b)).normalizeHead
       case predicate: Predicate => Not(predicate)

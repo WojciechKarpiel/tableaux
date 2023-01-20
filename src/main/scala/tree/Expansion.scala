@@ -26,14 +26,16 @@ object Expansion {
       case Formula.Predicate(_, _) => Expansion.empty
       case Formula.Not(_) => Expansion.empty
       case Formula.ForAll(variable, body) =>
-        val unifiable = Function(FunctionName(new Unifiable()), Seq())
-        Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, unifiable, body)))
+        val unifiable = new Unifiable()
+        val formula1 = FormulaUtil.replaceVariable(variable, unifiable, body)
+        Expansion.singleBranch(Branch(formula1))
       case Formula.Exists(variable, body) =>
         val freeVariablesSet = FormulaUtil.freeVariables(body, Set(variable))
         val freeVariables: Seq[Term] = freeVariablesSet.toSeq
         val skolemConstantId = FunctionName(new InternVar())
         val newVariable = Function(skolemConstantId, freeVariables)
-        Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, newVariable, body)))
+        val formula1 = FormulaUtil.replaceVariable(variable, newVariable, body)
+        Expansion.singleBranch(Branch(formula1))
       case Formula.And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
       case Formula.Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
 }

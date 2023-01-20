@@ -135,7 +135,7 @@ object Parser {
 
   def fixTerm(v: NamedVar, term: Term): Term = term match
     case variable: Variable => variable
-    case f@Function(name, _) => /* fail if args>0 */ if (name.name == v) v else f
+    case f@Function(name, _) => /* fail if args>0 */ if (name.name == v) v else f.copy(args = f.args.map(fixTerm(v, _)))
 
 
   // see usage

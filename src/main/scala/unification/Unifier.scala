@@ -1,17 +1,20 @@
 package pl.wojciechkarpiel.tableaux
 package unification
 
-import lang.Term.Variable
+import lang.Term.{NamedVar, Variable}
 import unification.Unifier.UnificationResult.{UnificationFailure, UnificationSuccess}
 import unification.Unifier.UnifierTerm.*
+
+import pl.wojciechkarpiel.tableaux.lang.Formula.Predicate
+import pl.wojciechkarpiel.tableaux.lang.Term
 
 import scala.annotation.{tailrec, targetName}
 
 object Unifier {
 
   enum UnifierTerm:
-    case Tree(name: Variable, branches: Seq[UnifierTerm])
-    case Unifiable(id: Variable) extends UnifierTerm
+    case Tree(name: Variable, branches: Seq[UnifierTerm], metaFn: Boolean) //todo rm meta
+    case Unifiable(id: Term.Unifiable)
 
   opaque type Substitution = Seq[(Unifiable, UnifierTerm)]
   extension (substitution: Substitution) {
@@ -27,6 +30,9 @@ object Unifier {
     def size: Int = substitution.size
 
     private def concat(other: Substitution): Substitution = substitution ++ other
+
+    // TODO forbid
+    def raw: Seq[(Unifiable, UnifierTerm)] = substitution
   }
 
   object Substitution {
@@ -51,7 +57,7 @@ object Unifier {
 
   private def treeTree(a: Tree, b: Tree): UnificationResult =
     if a.name == b.name && a.branches.size == b.branches.size then {
-      def rec(unificationProblems: Seq[(UnifierTerm, UnifierTerm)]): UnificationResult =
+      def rec(unificationProblems: List[(UnifierTerm, UnifierTerm)]): UnificationResult =
         unificationProblems match
           case (a, b) :: tail => rec(tail) match
             case UnificationFailure => UnificationFailure
@@ -62,18 +68,18 @@ object Unifier {
                   UnificationSuccess(headSubstitution.concat(tailSubstitution))
           case Nil => UnificationSuccess(Substitution.empty())
 
-      rec(a.branches.zip(b.branches))
+      rec(a.branches.zip(b.branches).toList)
     } else UnificationFailure
 
-  private def applySubstitution(term: UnifierTerm, substitution: Substitution): UnifierTerm =
+  def applySubstitution(term: UnifierTerm, substitution: Substitution): UnifierTerm =
     term match
       case u: Unifiable => substitution.find(u).getOrElse(u)
-      case Tree(name, branches) => Tree(name, branches.map(branch => applySubstitution(branch, substitution)))
+      case Tree(name, branches, meta) => Tree(name, branches.map(branch => applySubstitution(branch, substitution)), meta)
 
   private def treeUnifiable(u: Unifiable, t: Tree): UnificationResult =
     if occurs(u, t) then UnificationFailure else UnificationSuccess(Substitution(u, t))
 
   private def occurs(x: Unifiable, term: UnifierTerm): Boolean = term match
     case u: Unifiable => u == x
-    case Tree(_, branches) => branches.exists(branch => occurs(x, branch))
+    case Tree(_, branches, _) => branches.exists(branch => occurs(x, branch))
 }
