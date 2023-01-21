@@ -2,10 +2,10 @@ package pl.wojciechkarpiel.tableaux
 package util
 
 import lang.Term
-import lang.Term.Variable
+import lang.Term.Constant
 
 object Printing {
-  def printFunctionLike(funName: Variable, args: Seq[Term]): String = {
+  def printFunctionLike(funName: Constant, args: Seq[Term]): String = {
     val sb = new StringBuilder()
     sb.append(funName)
     if (args.nonEmpty) {

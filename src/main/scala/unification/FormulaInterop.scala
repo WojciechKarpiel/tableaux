@@ -12,7 +12,7 @@ import util.MetadataHolder
 
 object FormulaInterop {
 
-  def apply(predicate: Predicate): UnifierTerm = Tree(NamedVar(predicate.name.name), predicate.args.map(apply), MetadataHolder(true))
+  def apply(predicate: Predicate): UnifierTerm = Tree(predicate.name.name, predicate.args.map(apply), MetadataHolder(true))
 
   def apply(term: Term): UnifierTerm = term match
     case unifiable: Term.Unifiable => Unifiable(unifiable)

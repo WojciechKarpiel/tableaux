@@ -4,152 +4,155 @@ package parser
 import lang.Formula.*
 import lang.Term.*
 import lang.{Formula, Term}
+import util.Identifier
 
-import org.parboiled2.{Parser => ParboiledParser, *}
 import org.parboiled2.support.hlist.{::, HList, HNil}
+import org.parboiled2.{Parser as ParboiledParser, *}
 
 import scala.annotation.{compileTimeOnly, tailrec}
 import scala.collection.immutable
 import scala.util.Try
 
+/**
+ * The traditional language of logic is left-recursive, and PEG grammars cannot into direct left-recursion,
+ * so the grammar needed to be adjusted to make the left-recursion indirect.
+ * That's why infix operators (and, or, implies, equivalent) seem to start parsing in the middle of a formula
+ * (see [[andRight]], [[orRight]], [[impliesRight]], [[equivalentRight]]).
+ * TBH I blindly decided to experiment with Parboiled before realizing that PEG parsers cannot into left-recursion,
+ * but Parboiled turned out to be so nice and easy-to-use that I'm glad I haven't done a proper research first.
+ * Seriously, props to Parboiled authors!
+ *
+ * To support operator priority, there are "levels" of parsing.
+ * I think I first saw this trick in Coq's LTac2 parser. IIRC Coq's parser used Menhir, which
+ * parses LR(1) grammars, but the trick works in both grammar types. Levels:
+ * 0. [[level0]]: not, raw predicates
+ * 1. [[level1]]: and, or
+ * 2. [[level2]]: quantifiers
+ * 3. [[level3]]: implies, equivalent
+ */
 class Parser(val input: ParserInput) extends ParboiledParser {
 
   import Parser.*
 
-  def InputLine: Rule1[Formula] = rule {
-    WhiteSpace ~ Formula ~ EOI
-  }
+  // Public API
+  def runParser(): Try[Formula] = RootRule.run()
 
-  def Formula: Rule1[Formula] =
-  //    rule(nonLeftRecursiveByNature ~ RRECSTUFF.?)
-    lv2rec
+  // Types
+  private type HFormula = Formula :: HNil
+  private type FormulaToFormula = Rule[HFormula, HFormula]
+  private type RFormula = Rule1[Formula]
 
-  def nonLeftRecursiveByNature: Rule1[Formula] = rule(parend | notR /* | frall | ex */ | Pred)
+  // Root rule
+  private def RootRule: RFormula = rule(whiteSpace ~ Formula ~ EOI)
 
-  /*
-  \lnot is evaluated first
-  ∧ \land and ∨ \lor are evaluated next
-  Quantifiers are evaluated next
-  → \to is evaluated last.
-  */
-
-  def frall: Rule1[Formula] = rule(("∀" | safename("forall")) ~ WhiteSpace ~ variable ~ optDot ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
-    ForAll(f, fixVariable(f, b))))
-
-  def ex: Rule1[Formula] = rule(("∃" | safename("exists")) ~ WhiteSpace ~ variable ~ optDot ~ lv1Arec ~> ((f: NamedVar, b: Formula) =>
-    Exists(f, fixVariable(f, b))))
-
-  def optDot: Rule0 = rule(optional(ch('.')) ~ WhiteSpace)
+  private def Formula: RFormula = level3
 
 
-  def variable: Rule1[NamedVar] = rule(Name ~> ((f: FunctionName) => (f.name.asInstanceOf[NamedVar]))) // hax
+  // level 0
+  private def level0: RFormula = rule(parenthesesFormula | not | predicate)
 
-  def lvl0rec: Rule1[Formula] = nonLeftRecursiveByNature
+  private def parenthesesFormula: RFormula = rule(whiteSpaced('(') ~ Formula ~ whiteSpaced(')'))
 
-  def lv1rec: Rule1[Formula] = rule(lvl0rec ~ (rrecAnd | rrecOr).?)
+  private def not: RFormula =
+    rule(("!" | "~" | "¬" | wholeWord("not")) ~ whiteSpace ~ level0 ~> ((f: Formula) => Not(f)))
 
-  def lv1Arec: Rule1[Formula] = rule((frall | ex) | (lv1rec ~ (rrecAnd | rrecOr).?))
+  private def predicate: Rule1[Predicate] = rule(predicateWithoutArgs | predicateWithArgs)
 
-
-  def lv2rec: Rule1[Formula] = rule(lv1Arec ~ (rrecEquiv | rrecImpies).?)
-
-  def RRECSTUFF: FtoF = rule(
-    rrecAnd | rrecOr |
-      rrecEquiv | rrecImpies
+  private def predicateWithoutArgs: Rule1[Predicate] = rule(
+    (name ~ whiteSpaced('(') ~ args ~ whiteSpaced(')')) ~>
+      ((f: Identifier, args: Seq[Term]) => Predicate(f.toPredicateName, args))
   )
 
-  def notR: Rule1[Formula] = rule {
-    ("!" | "~" | "¬" | safename("not")) ~ WhiteSpace ~ lvl0rec ~> ((f: Formula) => Not(f))
-  }
-
-  def parend: Rule1[Formula] = rule(ws('(') ~ Formula ~ ws(')'))
+  private def predicateWithArgs: Rule1[Predicate] =
+    rule((name ~ !ch('(')) ~> ((f: Identifier) => Predicate(f.toPredicateName, Seq())))
 
 
-  type Elo = Formula :: HNil //::[Formula, HNil]
-  type Elo2 = ::[Formula, ::[Formula, HNil]]
+  // level 1
+  private def level1: RFormula = rule(level0 ~ (andRight | orRight).?)
 
-  type FtoF = Rule[Elo, Elo]
-  //  def rrecAnd : FtoF = rule(andq ~ andF)
+  private def orRight: FormulaToFormula =
+    rule((wholeWord("or") | "∨" | "||") ~ whiteSpace ~ level2 ~> ((a: Formula, b: Formula) => Or(a, b)))
 
-  def rrecImpies: Rule[Elo, Elo] = rule(
-    /* nonRecByNat ~*/ ("->" | "=>" | "⇒") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Implies(a, b))
+  private def andRight: FormulaToFormula =
+    rule((wholeWord("and") | "∧" | "&&") ~ whiteSpace ~ level2 ~> ((a: Formula, b: Formula) => And(a, b)))
+
+
+  // level 2
+  private def level2: RFormula = rule((forAll | exists) | (level1 ~ (andRight | orRight).?))
+
+  private def forAll: RFormula = rule(
+    ("∀" | wholeWord("forall")) ~ whiteSpace ~ variable ~ optionalDot ~ level2 ~>
+      ((variable: NamedVar, body: Formula) => ForAll(variable, fixScopedBody(variable, body)))
   )
 
-  def rrecEquiv: Rule[Elo, Elo] =
-    rule(("<->" | "<=>" | "⇔") ~ WhiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Equivalent(a, b)))
-
-  def rrecOr: FtoF =
-    rule((safename("or") | "∨" | "||") ~ WhiteSpace ~ lv1Arec ~> ((a: Formula, b: Formula) => Or(a, b)))
-
-  def rrecAnd: FtoF =
-    rule((safename("and") | "∧" | "&&") ~ WhiteSpace ~ lv1Arec ~> ((a: Formula, b: Formula) => And(a, b)))
+  private def exists: RFormula = rule(
+    ("∃" | wholeWord("exists")) ~ whiteSpace ~ variable ~ optionalDot ~ level2 ~>
+      ((variable: NamedVar, body: Formula) => Exists(variable, fixScopedBody(variable, body)))
+  )
 
 
-  def Pred: Rule1[Predicate] = rule { // hax
-    Fn ~> ((fn: Function) => Predicate(PredicateName(fn.name.name.asInstanceOf[NamedVar].name), fn.args))
-  }
+  // level 3
+  private def level3: RFormula = rule(level2 ~ (equivalentRight | impliesRight).?)
 
-  def wordBoundary: Rule0 = rule(!Parser.NameChar)
+  private def impliesRight: FormulaToFormula =
+    rule(("->" | "=>" | "⇒") ~ whiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Implies(a, b)))
 
-  def Name: Rule1[FunctionName] =
-    rule((capture(Parser.NameCharS ~ zeroOrMore(Parser.NameChar) ~ !Parser.NameChar) ~> (s => FunctionName(NamedVar(s)))) ~ (WhiteSpace))
-
-
-  def safename(string: String): Rule0 = rule(string ~ wordBoundary)
-
-  def Fn: Rule1[Function] = rule {
-    (
-      (Name ~ !ch('(')) ~> ((f: FunctionName) => Function(f, Seq())) |
-        (Name ~ ws('(') ~ args ~ ws(')')) ~> ((f: FunctionName, s: Seq[Term]) => Function(f, s))
-
-      )
-  }
-
-  def ws(c: Char): Rule0 = rule(c ~ WhiteSpace)
-
-  def args: Rule1[Seq[Term]] = rule {
-    (zeroOrMore(Term).separatedBy(ws(',')))
-  }
+  private def equivalentRight: FormulaToFormula =
+    rule(("<->" | "<=>" | "⇔") ~ whiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Equivalent(a, b)))
 
 
-  // only fns, rest later to fix D:
-  def Term: Rule1[Term] = rule {
-    Fn
-  }
+  // terms
 
-  def WhiteSpace: Rule0 = rule(zeroOrMore(WhiteSpaceChar))
+  /**
+   * we only parse functions, and then turn them into Variables by [[fixScopedBody]] and [[fixScopedTerm]]
+   */
+  private def term: Rule1[Term] = rule(function)
+
+  private def args: Rule1[Seq[Term]] = rule(zeroOrMore(term).separatedBy(whiteSpaced(',')))
+
+  private def function: Rule1[Function] = rule( // hacky reuse Predicate rule
+    predicate ~> ((fn: Predicate) => Function(FunctionName(fn.name.name), fn.args))
+  )
+
+  private def variable: Rule1[NamedVar] = rule(name ~> ((f: Identifier) => f.toVariable))
 
 
-  def doRun(): Try[Formula] = InputLine.run()
+  // helpers
+  private def wordBoundary: Rule0 = rule(!Parser.IdentifierChar)
+
+  private def name: Rule1[Identifier] = rule(
+    capture(Parser.IdentifierStart ~ zeroOrMore(Parser.IdentifierChar) ~ !Parser.IdentifierChar) ~>
+      ((s: String) => Identifier(s)) ~ whiteSpace
+  )
+
+  private def wholeWord(word: String): Rule0 = rule(word ~ wordBoundary)
+
+  private def whiteSpaced(c: Char): Rule0 = rule(c ~ whiteSpace)
+
+  private def whiteSpace: Rule0 = rule(zeroOrMore(CharPredicate(" \n\r\t\f")))
+
+  private def optionalDot: Rule0 = rule(optional(ch('.')) ~ whiteSpace)
 }
 
 object Parser {
-  private val WhiteSpaceChar = CharPredicate(" \n\r\t\f")
-  private var LPar = CharPredicate("(")
-  private var RPar = CharPredicate(")")
+  def run(input: ParserInput): Try[Formula] = Parser(input).runParser()
 
-  private def NameCharS = CharPredicate.from(_.isUnicodeIdentifierStart)
+  private def IdentifierStart = CharPredicate.from(c => c.isUnicodeIdentifierStart || c.isDigit /* allow e.g. '0' */)
 
-  private def NameChar: CharPredicate = CharPredicate.from(_.isUnicodeIdentifierPart)
+  private def IdentifierChar: CharPredicate = CharPredicate.from(_.isUnicodeIdentifierPart)
 
-  def run(input: ParserInput): Try[Formula] = Parser(input).InputLine.run()
-
-
-  def fixTerm(v: NamedVar, term: Term): Term = term match
+  private def fixScopedTerm(v: NamedVar, term: Term): Term = term match
     case variable: Variable => variable
-    case f@Function(name, _) => /* fail if args>0 */ if (name.name == v) v else f.copy(args = f.args.map(fixTerm(v, _)))
+    case f@Function(name, _) => // TODO fail if args>0
+      if (name.name == v) v else f.copy(args = f.args.map(fixScopedTerm(v, _)))
 
-
-  // see usage
-  def fixVariable(v: NamedVar, formula: Formula): Formula = formula match
-    case Predicate(name, args) => Predicate(name, args.map(a => fixTerm(v, a)))
-    case Not(formula) => Not(fixVariable(v, formula))
-    case f@ForAll(variable, body) => (if variable == v then f /* shadowed */
-    else ForAll(variable, fixVariable(v, body)))
-    case e@Exists(variable, body) => (if variable == v then e /* shadowed */
-    else Exists(variable, fixVariable(v, body)))
-    case And(a, b) => And(fixVariable(v, a), fixVariable(v, b))
-    case Or(a, b) => Or(fixVariable(v, a), fixVariable(v, b))
-    case Equivalent(a, b) => Equivalent(fixVariable(v, a), fixVariable(v, b))
-    case Implies(premise, conclusion) => Implies(fixVariable(v, premise), fixVariable(v, conclusion))
+  private def fixScopedBody(v: NamedVar, formula: Formula): Formula = formula match
+    case Predicate(name, args) => Predicate(name, args.map(a => fixScopedTerm(v, a)))
+    case Not(formula) => Not(fixScopedBody(v, formula))
+    case f@ForAll(variable, body) => if variable == v then f else ForAll(variable, fixScopedBody(v, body))
+    case e@Exists(variable, body) => if variable == v then e else Exists(variable, fixScopedBody(v, body))
+    case And(a, b) => And(fixScopedBody(v, a), fixScopedBody(v, b))
+    case Or(a, b) => Or(fixScopedBody(v, a), fixScopedBody(v, b))
+    case Equivalent(a, b) => Equivalent(fixScopedBody(v, a), fixScopedBody(v, b))
+    case Implies(premise, conclusion) => Implies(fixScopedBody(v, premise), fixScopedBody(v, conclusion))
 }

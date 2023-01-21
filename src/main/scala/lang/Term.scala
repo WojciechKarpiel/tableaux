@@ -12,20 +12,22 @@ object Term {
    */
   sealed trait Variable extends Term
 
-  case class NamedVar(name: String) extends Variable {
+  sealed trait Constant extends Variable
+
+  case class NamedVar(name: String) extends Constant {
     override def toString: String = name
+  }
+
+  case class InternVar private(gensym: Gensym) extends Constant {
+    def this() = this(new Gensym())
+
+    override def toString: String = s"I$gensym"
   }
 
   final case class Unifiable(gensym: Gensym) extends Variable {
     def this() = this(new Gensym())
 
     override def toString: String = s"U$gensym"
-  }
-
-  case class InternVar private(gensym: Gensym) extends Variable {
-    def this() = this(new Gensym())
-
-    override def toString: String = s"I$gensym"
   }
 
   /**
@@ -45,7 +47,7 @@ object Term {
     def constant(name: FunctionName): Function = Function(name, Seq())
   }
 
-  case class FunctionName(name: Variable) extends AnyVal {
+  case class FunctionName(name: Constant) extends AnyVal {
     override def toString: String = name.toString
 
     def apply(args: Term*): Function = Function(this, args)

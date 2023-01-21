@@ -50,7 +50,7 @@ class ParserTest extends AnyFlatSpec with should.Matchers {
 
   private def test(input: String, expected: Formula): Unit = {
     val p = Parser(input)
-    p.doRun() match
+    p.runParser() match
       case Failure(e: ParseError) => fail(p.formatError(e))
       case Success(value) => value should be(expected)
       case Failure(other) => throw other

@@ -3,7 +3,7 @@ package unification
 
 import lang.Formula.Predicate
 import lang.Term
-import lang.Term.{NamedVar, Variable}
+import lang.Term.{NamedVar, Variable, Constant}
 import unification.Unifier.UnificationResult.{UnificationFailure, UnificationSuccess}
 import unification.Unifier.UnifierTerm.*
 import util.MetadataHolder
@@ -13,7 +13,7 @@ import scala.annotation.{tailrec, targetName}
 object Unifier {
 
   enum UnifierTerm:
-    case Tree(name: Variable, branches: Seq[UnifierTerm], metadata: MetadataHolder) // TODO remove need for metadata
+    case Tree(name: Constant, branches: Seq[UnifierTerm], metadata: MetadataHolder) // TODO remove need for metadata
     case Unifiable(id: Term.Unifiable)
 
   opaque type Substitution = Seq[(Unifiable, UnifierTerm)]

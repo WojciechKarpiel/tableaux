@@ -29,9 +29,9 @@ object Formula {
 
     def isAtomic: Boolean = arity == 0
 
-    override def toString: String = Printing.printFunctionLike(NamedVar(name.name), args)
+    override def toString: String = Printing.printFunctionLike(name.name, args)
 
-    def jName: String = name.name
+    def jName: String = name.name.name
   }
 
   object Predicate {
@@ -40,10 +40,14 @@ object Formula {
     def constant(name: PredicateName): Predicate = Predicate(name, Seq())
   }
 
-  case class PredicateName(name: String) extends AnyVal {
-    override def toString: String = name
+  case class PredicateName(name: NamedVar) extends AnyVal {
+    override def toString: String = name.toString
 
     def apply(args: Term*): Predicate = Predicate(this, args)
+  }
+
+  object PredicateName {
+    def apply(name: String): PredicateName = PredicateName(NamedVar(name))
   }
 
   /**
