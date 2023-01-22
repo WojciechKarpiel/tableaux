@@ -57,6 +57,11 @@ sbt 'show GraalVMNativeImage / packageBin'
 
 ## Chcę użyć `Tableaux` jako biblioteki w moim programie
 
-Zobacz [przykład](src/main/scala/example/Example.scala).
+Obczaj pakiet [pl.wojciechkarpiel.tableaux.api](src/main/scala/api)
+i [przykład użycia](src/main/scala/example/Example.java).
 
-wincyj WIP
+Sam se musisz opublikować tę bibliotekę:
+
+```
+sbt publishLocal
+```

@@ -8,6 +8,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "tableaux",
     idePackagePrefix := Some("pl.wojciechkarpiel.tableaux"),
+    Compile / mainClass := Some("pl.wojciechkarpiel.tableaux.app.Main"),
     libraryDependencies += "org.parboiled" %% "parboiled" % "2.4.1",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % "test",
     graalVMNativeImageOptions ++= Seq(

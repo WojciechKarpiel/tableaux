@@ -155,10 +155,9 @@ final class Tree(val formula: Formula, debug: Boolean) {
       val szs = ccc.map(_.size)
       val wasPointless = q.map(_.toSet) == ccc.map(_.toSet)
       println(wasPointless.toString + " " + szs)
-
-
     }
-    val ok = hardcoreSolve(cnds)
+    val doomedAlready = cnds.exists(_.isEmpty)
+    val ok = !doomedAlready && hardcoreSolve(cnds)
     if ok then true else if maxGammaExpansions == 0 then {
       doDebug {
         printTree()
