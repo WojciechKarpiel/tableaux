@@ -2,8 +2,8 @@ package pl.wojciechkarpiel.tableaux
 package tree
 
 import lang.Formula.*
-import lang.{Formula, Term}
 import lang.Term.*
+import lang.{Formula, Term}
 import util.FormulaUtil
 
 case class Branch(formulas: Seq[Formula]) extends AnyVal
@@ -25,10 +25,8 @@ object Expansion {
     else normalized match
       case Formula.Predicate(_, _) => Expansion.empty
       case Formula.Not(_) => Expansion.empty
-      case Formula.ForAll(variable, body) =>
-        val unifiable = new Unifiable()
-        val formula1 = FormulaUtil.replaceVariable(variable, unifiable, body)
-        Expansion.singleBranch(Branch(formula1))
+      case forall: Formula.ForAll =>
+        Expansion.singleBranch(Branch(gammaExpansion(forall)._2))
       case Formula.Exists(variable, body) =>
         val freeVariablesSet = FormulaUtil.freeVariables(body, Set(variable))
         val freeVariables: Seq[Term] = freeVariablesSet.toSeq
@@ -38,4 +36,12 @@ object Expansion {
         Expansion.singleBranch(Branch(formula1))
       case Formula.And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
       case Formula.Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
+
+  /**
+   * @return new unifiable term and expanded formula containing the term
+   */
+  def gammaExpansion(forAll: ForAll): (Unifiable, Formula) =
+    val ForAll(variable, body) = forAll
+    val unifiable = new Unifiable()
+    unifiable -> FormulaUtil.replaceVariable(variable, unifiable, body)
 }

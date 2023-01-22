@@ -10,7 +10,8 @@ object Main {
 
   def main(args: Array[String]): Unit = {
 
-    var maxSearchDepth = 4
+    var maxSearchDepth: Int = 4
+    var printDebug: Boolean = false
 
     println("Spróbuj wpisać jakie co, na przykład:")
     println("Paradoks barowy: jeśli jeden pije, to wszyscy piją")
@@ -25,7 +26,10 @@ object Main {
       print("> ")
       val input = readLine()
       if (input != null && input.nonEmpty) {
-        input.toIntOption match
+        if input == "debug" then {
+          printDebug = !printDebug
+          println(s"Debug mode ${if printDebug then "enabled" else "disabled"}")
+        } else input.toIntOption match
           case Some(newBound) =>
             println(s"Nowa głębokość poszukiwań: $newBound (było: $maxSearchDepth)")
             maxSearchDepth = newBound
@@ -38,6 +42,7 @@ object Main {
             else s"Nie udało mi się udowodnić, że ${tree.formula} (głębokość szukania: $maxSearchDepth)"
             println(response)
             println(s"Operacja zajęła ${formatTime(endTime - startTime)}")
+            if (printDebug) tree.printTree()
         loop()
       }
     }

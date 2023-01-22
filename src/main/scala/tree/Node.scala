@@ -1,11 +1,16 @@
 package pl.wojciechkarpiel.tableaux
 package tree
 
-import lang.Formula
-import tree.Node.NodeId
+import lang.Formula.{ForAll, Predicate}
+import lang.Term.Unifiable
+import lang.{Formula, NormalizedHeadFormula, Term}
+import tree.Node.{NodeId, ShouldNotHappenException}
 import tree.RuleType.Gamma
+import unification.Unifier.{Substitution, UnificationResult}
+import unification.{FormulaInterop, Unifier}
 import util.Gensym
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 final class Node private(var formula: Formula, val parent: Option[Node], val originator: Option[Node]) {
@@ -29,6 +34,45 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
 
   var blocked = false
 
+  /** applies to nodes whose originator is gamma type, otherwise is none. */
+  def substitution(): Option[Term] = {
+    def findPredicates(f: Formula): LazyList[Formula.Predicate] = f match
+      case p: Formula.Predicate => LazyList(p)
+      case Formula.Not(formula) => findPredicates(formula)
+      case ForAll(variable, body) => findPredicates(body)
+      case Formula.Exists(variable, body) => findPredicates(body)
+      case Formula.And(a, b) => findPredicates(a) ++ findPredicates(b)
+      case Formula.Or(a, b) => findPredicates(a) ++ findPredicates(b)
+      case Formula.Equivalent(a, b) => findPredicates(a) ++ findPredicates(b)
+      case Formula.Implies(premise, conclusion) => findPredicates(premise) ++ findPredicates(conclusion)
+
+
+    originator //.filter (_.ruleType==Gamma)
+      .map(_.formula).collect { case fa: ForAll => fa }.map { parentForall =>
+      val (unifiable, expanded) = Expansion.gammaExpansion(parentForall)
+      val flexiblePreds = findPredicates(expanded)
+      val rigidPreds = findPredicates(this.formula)
+      val pairs = flexiblePreds.zip(rigidPreds)
+
+      @tailrec
+      def findUnified(pairs: LazyList[(Predicate, Predicate)]): Term =
+        if pairs.isEmpty then throw new ShouldNotHappenException()
+        else {
+          val (a, b) = pairs.head
+          Unifier.unify(FormulaInterop.apply(a), FormulaInterop.apply(b)) match
+            case UnificationResult.UnificationFailure => throw new ShouldNotHappenException()
+            case UnificationResult.UnificationSuccess(substitution) =>
+              substitution.headOption match
+                case Some((uVar, uTerm)) =>
+                  val term = FormulaInterop.toLogicTerm(uTerm)
+                  if term == unifiable then FormulaInterop.toLogicTerm(uVar) else term
+                case None => findUnified(pairs.tail)
+        }
+
+      findUnified(pairs)
+    }
+  }
+
   def canExpand: Boolean = !blocked && (!hasExpanded || RuleType(formula) == Gamma)
 
   def restoreOriginalFormula(): Unit = formula = originalFormula
@@ -44,8 +88,8 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
           var currentTip = tip
           newBranch.formulas.foreach { newFormula =>
             val newNode = new Node(newFormula, currentTip, Node.this)
-            originated = (newNode +: originated)
-            currentTip.children = (newNode +: currentTip.children)
+            originated = newNode +: originated
+            currentTip.children = newNode +: currentTip.children
             currentTip = newNode
           }
         }
@@ -67,8 +111,11 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
     find(this)
   }
 
-  override def toString: String =
-    s"$formula <$id> [${parent.map(_.id.toString).getOrElse("")}] {${originator.map(_.id.toString).getOrElse("")}}"
+  override def toString: String = {
+    def idOpt(nodeOpt: Option[Node]): String = nodeOpt.map(_.id.toString).getOrElse("")
+
+    s"$formula <$id> [${idOpt(parent)}] {${idOpt(originator)}} ${substitution().map(t => s"..::$t::..").getOrElse("")}"
+  }
 }
 
 object Node {
@@ -84,4 +131,6 @@ object Node {
   }
 
   private var NodeCount = 0
+
+  class ShouldNotHappenException extends RuntimeException
 }

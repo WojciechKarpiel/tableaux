@@ -29,8 +29,6 @@ object FormulaBuilder {
 
   def exists(variable: String): ExistsFormulaBuilder = new ExistsFormulaBuilder(variable)
 
-  def variable(name: String): Term = NamedVar(name)
-
   def function(functionName: String): FunctionTermBuilder = new FunctionTermBuilder(functionName)
 
   def constant(name: String): Term = function(name).apply()

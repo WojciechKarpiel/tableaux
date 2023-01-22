@@ -33,6 +33,8 @@ object Unifier {
 
     def map[T](f: (Unifiable, UnifierTerm) => T): Seq[T] = substitution.map { case (k, v) => f(k, v) }
 
+    def headOption: Option[(Unifiable, UnifierTerm)] = substitution.headOption
+
     private def concat(other: Substitution): Substitution = substitution ++ other
   }
 
