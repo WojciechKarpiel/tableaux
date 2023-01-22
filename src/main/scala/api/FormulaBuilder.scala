@@ -1,14 +1,15 @@
 package pl.wojciechkarpiel.tableaux
 package api
 
+import api.ConversionsBecauseJavaCannotIntoImportingFormula.given
 import lang.Formula.*
 import lang.Term.*
-import lang.{Formula, Term}
 
 import java.util
 import java.util.function.Function as JFunction
 import scala.annotation.varargs
 import scala.jdk.CollectionConverters.*
+import scala.language.implicitConversions
 
 object FormulaBuilder {
 
@@ -37,7 +38,7 @@ object FormulaBuilder {
   final class PredicateFormulaBuilder private[FormulaBuilder](predicateName: String) {
 
     @varargs
-    def apply(args: Term*): Predicate = toInternal(args: _*)
+    def apply(args: Term*): Formula = toInternal(args: _*)
 
     private def toInternal: PredicateName = PredicateName(predicateName)
   }
@@ -45,7 +46,7 @@ object FormulaBuilder {
   final class FunctionTermBuilder private[FormulaBuilder](functionName: String) {
 
     @varargs
-    def apply(args: Term*): Function = toInternal(args: _*)
+    def apply(args: Term*): Term = toInternal(args: _*)
 
     private def toInternal: FunctionName = FunctionName(NamedVar(functionName))
   }
