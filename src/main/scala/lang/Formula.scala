@@ -4,13 +4,9 @@ package lang
 import lang.Term.{NamedVar, Variable}
 import util.Printing
 
-sealed trait Formula {
-  def normalizeHead: NormalizedHeadFormula
-}
+sealed trait Formula
 
-sealed trait NormalizedHeadFormula extends Formula {
-  def normalizeHead: NormalizedHeadFormula = this
-}
+sealed trait NormalizedHeadFormula extends Formula
 
 object Formula {
   /**
@@ -56,15 +52,6 @@ object Formula {
   case class Not(formula: Formula) extends NormalizedHeadFormula {
 
     override def toString: String = "(¬" + formula + ")"
-
-    override def normalizeHead: NormalizedHeadFormula = formula.normalizeHead match {
-      case Not(formula) => formula.normalizeHead
-      case ForAll(variable, body) => Exists(variable, Not(body)).normalizeHead
-      case Exists(variable, body) => ForAll(variable, Not(body)).normalizeHead
-      case And(a, b) => Or(Not(a), Not(b)).normalizeHead
-      case Or(a, b) => And(Not(a), Not(b)).normalizeHead
-      case predicate: Predicate => Not(predicate)
-    }
   }
 
   case class ForAll(variable: Variable, body: Formula) extends NormalizedHeadFormula {
@@ -84,16 +71,13 @@ object Formula {
   }
 
   case class Equivalent(a: Formula, b: Formula) extends Formula {
-    override def normalizeHead: NormalizedHeadFormula = Or(And(a, b), And(Not(a), Not(b))).normalizeHead
 
     override def toString: String = "(" + a + " ⇔ " + b + ")"
   }
 
   case class Implies(premise: Formula, conclusion: Formula) extends Formula {
-    override def normalizeHead: NormalizedHeadFormula = Or(Not(premise), conclusion).normalizeHead
 
-    override def toString: String =
-      s"($premise ⇒ $conclusion)"
+    override def toString: String = s"($premise ⇒ $conclusion)"
   }
 }
 

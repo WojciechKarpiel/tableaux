@@ -22,7 +22,7 @@ object RuleType {
     case Formula.Or(_, _) => Beta
 
   def apply(formula: Formula): RuleType = {
-    val normalized = formula.normalizeHead
+    val normalized = Normalization.normalizeHead(formula)
     if normalized == formula then ofNormalizedFormula(normalized) else AlphaLike
   }
 }

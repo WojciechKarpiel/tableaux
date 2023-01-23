@@ -147,7 +147,16 @@ final class Tree(val formula: Formula, debug: Boolean) {
   def solve(maxGammaExpansions: Int): Boolean = {
     expandNonGamma()
     val tips = findTips
-    val cndsq = tips.map(branchClosingUnifiables)
+    val cndsq = tips.flatMap { tip =>
+      if tip.closedForFree then None
+      else {
+        val res = branchClosingUnifiables(tip)
+        val freeUnifL = freeUnif(res)
+        tip.closedForFree |= freeUnifL.isDefined
+        if (tip.closedForFree) doDebug(println(s"$tip is closed for free: $freeUnifL"))
+        Some(res)
+      }
+    }
     val cnds = reduceq(cndsq)
     doDebug {
       val q = cndsq.map(_.toVector).toVector
@@ -171,8 +180,11 @@ final class Tree(val formula: Formula, debug: Boolean) {
     }
   }
 
-  private def hasFreeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean = {
-    v.exists { case (a, b) => Unifier.unify(a, b) match
+  private def hasFreeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean =
+    freeUnif(v).isDefined
+
+  private def freeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Option[(UnifierTerm, UnifierTerm)] = {
+    v.find { case (a, b) => Unifier.unify(a, b) match
       case UnificationResult.UnificationFailure => false
       case UnificationResult.UnificationSuccess(substitution) => substitution.isEmpty
     }
@@ -202,7 +214,7 @@ final class Tree(val formula: Formula, debug: Boolean) {
   }
 
   /**
-   * This is v bad to fix later
+   * This is v bad to fix later. This is also the hottest inner-loop that runs in exponential
    *
    * @return true if ok
    */

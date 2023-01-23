@@ -1,9 +1,10 @@
 package pl.wojciechkarpiel.tableaux
 package util
 
-import lang.{Formula, NormalizedHeadFormula, Term}
 import lang.Formula.*
 import lang.Term.*
+import lang.{Formula, NormalizedHeadFormula, Term}
+import tree.Normalization
 
 object FormulaUtil {
   def replaceVariable(variable: Variable, replacement: Term, formula: Formula): Formula = {
@@ -26,7 +27,7 @@ object FormulaUtil {
     case Function(name, args) => Function(name, args.map(arg => replaceVariableInTerm(variable, replacement, arg)))
 
   def freeVariables(formula: Formula, scopedVariables: Set[Variable]): Set[Variable] =
-    formula.normalizeHead match
+    Normalization.normalizeHead(formula) match
       case Predicate(_, args) =>
         val value = args.map(termFreeVariables)
         val r = value.fold(Set())(_ ++ _).diff(scopedVariables)

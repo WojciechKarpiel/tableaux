@@ -29,6 +29,8 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
 
   private var hasExpanded: Boolean = false
 
+  var closedForFree: Boolean = false
+
   var children: Seq[Node] = Seq()
   var originated: Seq[Node] = Seq()
 
@@ -83,7 +85,7 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
       blocked = true
       hasExpanded = true
       val expansion = Expansion(formula)
-      findTips.foreach { tip =>
+      findTips.filterNot(_.closedForFree /* no need to expand closed branches */).foreach { tip =>
         expansion.branches.foreach { newBranch =>
           var currentTip = tip
           newBranch.formulas.foreach { newFormula =>

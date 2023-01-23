@@ -20,7 +20,7 @@ object Expansion {
   private def singleBranch(singleBranch: Branch): Expansion = Expansion(Seq(singleBranch))
 
   def apply(formula: Formula): Expansion =
-    val normalized = formula.normalizeHead
+    val normalized = Normalization.normalizeHead(formula)
     if normalized != formula then Expansion.singleBranch(Branch(normalized))
     else normalized match
       case Formula.Predicate(_, _) => Expansion.empty
