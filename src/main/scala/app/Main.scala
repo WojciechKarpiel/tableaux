@@ -12,6 +12,7 @@ object Main {
 
     var maxSearchDepth: Int = 4
     var printDebug: Boolean = false
+    var innerDebug: Boolean = false
 
     println("Spróbuj wpisać jakie co, na przykład:")
     println("Paradoks barowy: jeśli jeden pije, to wszyscy piją")
@@ -29,13 +30,15 @@ object Main {
         if input == "debug" then {
           printDebug = !printDebug
           println(s"Debug mode ${if printDebug then "enabled" else "disabled"}")
+        } else if input == "odpluskw" then {
+          innerDebug = !innerDebug
         } else input.toIntOption match
           case Some(newBound) =>
             println(s"Nowa głębokość poszukiwań: $newBound (było: $maxSearchDepth)")
             maxSearchDepth = newBound
           case None =>
             val startTime = System.nanoTime()
-            val tree = new Tree(input)
+            val tree = new Tree(input, innerDebug)
             val proven = tree.solve(maxSearchDepth)
             val endTime = System.nanoTime()
             val response = if proven then s"To prawda, że ${tree.formula}"

@@ -166,18 +166,22 @@ final class Tree(val formula: Formula, debug: Boolean) {
       println(wasPointless.toString + " " + szs)
     }
     val doomedAlready = cnds.exists(_.isEmpty)
-    val ok = !doomedAlready && hardcoreSolve(cnds)
-    if ok then true else if maxGammaExpansions == 0 then {
-      doDebug {
-        printTree()
-        printLinear()
+    val okSub: Option[Substitution] = if !doomedAlready then hardcoreSolve(cnds) else None
+    okSub match
+      case Some(value) =>
+        doDebug(println(s"Winning sub: $value"))
+        true
+      case None => if maxGammaExpansions == 0 then {
+        doDebug {
+          printTree()
+          printLinear()
+        }
+        false
+      } else {
+        doDebug(println("expanding gammas!!!!!"))
+        val worthTryingAgain = expandGammaOnce()
+        if worthTryingAgain then solve(maxGammaExpansions - 1) else false
       }
-      false
-    } else {
-      doDebug(println("expanding gammas!!!!!"))
-      val worthTryingAgain = expandGammaOnce()
-      if worthTryingAgain then solve(maxGammaExpansions - 1) else false
-    }
   }
 
   private def hasFreeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean =
@@ -216,37 +220,29 @@ final class Tree(val formula: Formula, debug: Boolean) {
   /**
    * This is v bad to fix later. This is also the hottest inner-loop that runs in exponential
    *
-   * @return true if ok
+   * @return working substitution, or none if no solution
    */
-  private def hardcoreSolve(candidates: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Boolean =
+  private def hardcoreSolve(candidates: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Option[Substitution] =
     if candidates.isEmpty then {
       doDebug(println("koniec"))
-      true
+      Some(Substitution.empty())
     } else {
       val myPart = candidates.head
 
 
       @tailrec
-      def loop(myC: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean = {
-        if (myC.isEmpty) false //no candidates :(
+      def loop(myC: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Option[Substitution] = {
+        if (myC.isEmpty) None //no candidates :(
         else {
           val (candA, candB) = myC.head
           Unifier.unify(candA, candB) match {
             case UnificationResult.UnificationFailure => loop(myC.tail)
             case UnificationResult.UnificationSuccess(substitution) =>
-              backupFormulas(rootNode)
-              propc(rootNode, substitution)
-              val rest = candidates.tail.map(propcHHH(_, substitution))
-
-              val ok = hardcoreSolve(rest)
-              if ok then {
-                doDebug(println(s"znalazłem $candA - $candB"))
-                true
-              } //solution found
-              else {
-                revertlol(rootNode)
-                loop(myC.tail)
-              }
+              val rest = candidates.tail.map(propagateChanges(_, substitution))
+              hardcoreSolve(rest) match
+                case Some(subRest) => doDebug(println(s"znalazłem $candA - $candB"))
+                  Some(substitution.concat(subRest))
+                case None => loop(myC.tail)
           }
         }
       }
@@ -260,67 +256,22 @@ final class Tree(val formula: Formula, debug: Boolean) {
 
   private def doDebug(code: => Unit): Unit = if debug then code
 
-  // todo ohyda
-  private def backupFormulas(node: Node): Unit = {
-    node.pushBackup()
-    node.children.foreach(backupFormulas)
-  }
 
-  private def revertlol(node: Node): Unit = {
-    node.popBakcup()
-    node.children.foreach(revertlol)
-  }
-
-  private def propc(node: Node, sub: Substitution): Unit = {
-    val s = FormulaInterop.fixSub(sub)
-
-    def lp(n: Node): Unit = {
-      n.formula = subFormula(n.formula, s)
-      n.children.foreach(lp)
-    }
-
-    lp(node)
-  }
-
-  private def subFormula(formula: Formula, m: Map[Term.Unifiable, Term]) = {
-    def lpT(t: Term): Term = {
-      t match
-        case Term.NamedVar(name) => Term.NamedVar(name)
-        case u: Term.Unifiable => m.getOrElse(u, u)
-        case i: Term.InternVar => i
-        case Term.Function(name, args) => Term.Function(name, args.map(lpT))
-    }
-
-    def lpF(f: Formula): Formula = {
-      f match
-        case Predicate(name, args) => Predicate(name, args.map(lpT))
-        case Not(formula) => Not(lpF(formula))
-        case ForAll(variable, body) => ForAll(variable, lpF(body))
-        case Exists(variable, body) => Exists(variable, lpF(body))
-        case And(a, b) => And(lpF(a), lpF(b))
-        case Or(a, b) => Or(lpF(a), lpF(b))
-        case Equivalent(a, b) => Equivalent(lpF(a), lpF(b))
-        case Implies(premise, conclusion) => Implies(lpF(premise), lpF(conclusion))
-    }
-
-    lpF(formula)
-  }
-
-  private def propcHHH(value: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)], substitution: Unifier.Substitution):
-  Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)] = {
-    //  Unifier.applySubstitution
+  private def propagateChanges(
+                                value: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)],
+                                substitution: Unifier.Substitution
+                              ): Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)] =
     value.map {
       case (a, b) => (Unifier.applySubstitution(a, substitution), Unifier.applySubstitution(b, substitution))
     }
-  }
 
   def findNode(id: Int): Option[Node] = {
-    def lp(n: Node): Option[Node] = {
+    def loop(n: Node): Option[Node] = {
       if (n.id.id == id) Some(n)
-      else n.children.flatMap(lp).headOption
+      else n.children.flatMap(loop).headOption
     }
 
-    lp(rootNode)
+    loop(rootNode)
   }
 }
 

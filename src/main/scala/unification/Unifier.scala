@@ -3,7 +3,7 @@ package unification
 
 import lang.Formula.Predicate
 import lang.Term
-import lang.Term.{NamedVar, Variable, Constant}
+import lang.Term.{Constant, NamedVar, Variable}
 import unification.Unifier.UnificationResult.{UnificationFailure, UnificationSuccess}
 import unification.Unifier.UnifierTerm.*
 import util.MetadataHolder
@@ -35,7 +35,7 @@ object Unifier {
 
     def headOption: Option[(Unifiable, UnifierTerm)] = substitution.headOption
 
-    private def concat(other: Substitution): Substitution = substitution ++ other
+    def concat(other: Substitution): Substitution = substitution ++ other
   }
 
   object Substitution {

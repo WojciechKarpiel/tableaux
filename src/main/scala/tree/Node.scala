@@ -11,73 +11,34 @@ import unification.{FormulaInterop, Unifier}
 import util.Gensym
 
 import scala.annotation.tailrec
+import scala.collection.immutable.LazyList
 import scala.collection.mutable
 
-final class Node private(var formula: Formula, val parent: Option[Node], val originator: Option[Node]) {
+final class Node private(val formula: Formula, val parent: Option[Node], val originator: Option[Node]) {
 
   def this(formula: Formula, parent: Node, originator: Node) = this(formula, Some(parent), Some(originator))
 
   val id = new NodeId()
 
-  val originalFormula: Formula = formula
+  def isTip: Boolean = children.isEmpty
 
-  private val backup = new mutable.Stack[Formula]()
+  def ruleType: RuleType = RuleType(formula)
 
-  def pushBackup(): Unit = backup.push(formula)
-
-  def popBakcup(): Unit = formula = backup.pop()
+  def children: Seq[Node] = children_
 
   private var hasExpanded: Boolean = false
 
   var closedForFree: Boolean = false
 
-  var children: Seq[Node] = Seq()
+  private var children_ : Seq[Node] = Seq()
+
+  private def addChild(child: Node): Unit = children_ = children_ :+ child
+
   var originated: Seq[Node] = Seq()
 
   var blocked = false
 
-  /** applies to nodes whose originator is gamma type, otherwise is none. */
-  def substitution(): Option[Term] = {
-    def findPredicates(f: Formula): LazyList[Formula.Predicate] = f match
-      case p: Formula.Predicate => LazyList(p)
-      case Formula.Not(formula) => findPredicates(formula)
-      case ForAll(variable, body) => findPredicates(body)
-      case Formula.Exists(variable, body) => findPredicates(body)
-      case Formula.And(a, b) => findPredicates(a) ++ findPredicates(b)
-      case Formula.Or(a, b) => findPredicates(a) ++ findPredicates(b)
-      case Formula.Equivalent(a, b) => findPredicates(a) ++ findPredicates(b)
-      case Formula.Implies(premise, conclusion) => findPredicates(premise) ++ findPredicates(conclusion)
-
-
-    originator //.filter (_.ruleType==Gamma)
-      .map(_.formula).collect { case fa: ForAll => fa }.map { parentForall =>
-      val (unifiable, expanded) = Expansion.gammaExpansion(parentForall)
-      val flexiblePreds = findPredicates(expanded)
-      val rigidPreds = findPredicates(this.formula)
-      val pairs = flexiblePreds.zip(rigidPreds)
-
-      @tailrec
-      def findUnified(pairs: LazyList[(Predicate, Predicate)]): Term =
-        if pairs.isEmpty then throw new ShouldNotHappenException()
-        else {
-          val (a, b) = pairs.head
-          Unifier.unify(FormulaInterop.apply(a), FormulaInterop.apply(b)) match
-            case UnificationResult.UnificationFailure => throw new ShouldNotHappenException()
-            case UnificationResult.UnificationSuccess(substitution) =>
-              substitution.headOption match
-                case Some((uVar, uTerm)) =>
-                  val term = FormulaInterop.toLogicTerm(uTerm)
-                  if term == unifiable then FormulaInterop.toLogicTerm(uVar) else term
-                case None => findUnified(pairs.tail)
-        }
-
-      findUnified(pairs)
-    }
-  }
-
   def canExpand: Boolean = !blocked && (!hasExpanded || RuleType(formula) == Gamma)
-
-  def restoreOriginalFormula(): Unit = formula = originalFormula
 
   def expand(): Boolean = {
     val willExpand = canExpand
@@ -91,7 +52,7 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
           newBranch.formulas.foreach { newFormula =>
             val newNode = new Node(newFormula, currentTip, Node.this)
             originated = newNode +: originated
-            currentTip.children = newNode +: currentTip.children
+            currentTip.addChild(newNode)
             currentTip = newNode
           }
         }
@@ -100,10 +61,6 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
     willExpand
   }
 
-  def isTip: Boolean = children.isEmpty
-
-
-  def ruleType: RuleType = RuleType(formula)
 
   def findTips: Seq[Node] = {
     def find(n: Node): Seq[Node] =
@@ -114,6 +71,44 @@ final class Node private(var formula: Formula, val parent: Option[Node], val ori
   }
 
   override def toString: String = {
+    def substitution(): Option[Term] = {
+      def findPredicates(f: Formula): LazyList[Formula.Predicate] = f match
+        case p: Formula.Predicate => LazyList(p)
+        case Formula.Not(formula) => findPredicates(formula)
+        case ForAll(variable, body) => findPredicates(body)
+        case Formula.Exists(variable, body) => findPredicates(body)
+        case Formula.And(a, b) => findPredicates(a) ++ findPredicates(b)
+        case Formula.Or(a, b) => findPredicates(a) ++ findPredicates(b)
+        case Formula.Equivalent(a, b) => findPredicates(a) ++ findPredicates(b)
+        case Formula.Implies(premise, conclusion) => findPredicates(premise) ++ findPredicates(conclusion)
+
+
+      originator
+        .map(_.formula).collect { case fa: ForAll => fa }.map { parentForall =>
+        val (unifiable, expanded) = Expansion.gammaExpansion(parentForall)
+        val flexiblePreds = findPredicates(expanded)
+        val rigidPreds = findPredicates(this.formula)
+        val pairs = flexiblePreds.zip(rigidPreds)
+
+        @tailrec
+        def findUnified(pairs: LazyList[(Predicate, Predicate)]): Term =
+          if pairs.isEmpty then throw new ShouldNotHappenException()
+          else {
+            val (a, b) = pairs.head
+            Unifier.unify(FormulaInterop.apply(a), FormulaInterop.apply(b)) match
+              case UnificationResult.UnificationFailure => throw new ShouldNotHappenException()
+              case UnificationResult.UnificationSuccess(substitution) =>
+                substitution.headOption match
+                  case Some((uVar, uTerm)) =>
+                    val term = FormulaInterop.toLogicTerm(uTerm)
+                    if term == unifiable then FormulaInterop.toLogicTerm(uVar) else term
+                  case None => findUnified(pairs.tail)
+          }
+
+        findUnified(pairs)
+      }
+    }
+
     def idOpt(nodeOpt: Option[Node]): String = nodeOpt.map(_.id.toString).getOrElse("")
 
     s"$formula <$id> [${idOpt(parent)}] {${idOpt(originator)}} ${substitution().map(t => s"..::$t::..").getOrElse("")}"
