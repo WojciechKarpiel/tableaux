@@ -1,8 +1,10 @@
 package pl.wojciechkarpiel.tableaux
 package util
 
+import lang.Formula
+import lang.Formula.*
 import lang.Term
-import lang.Term.Constant
+import lang.Term.*
 
 object Printing {
   def printFunctionLike(funName: Constant, args: Seq[Term]): String = {
@@ -16,5 +18,14 @@ object Printing {
     sb.toString()
   }
 
+  def toString(formula: Formula): String = formula match
+    case Predicate(name, args) => printFunctionLike(name.name, args)
+    case Not(formula) => "(¬" + formula + ")"
+    case ForAll(variable, body) => "∀" + variable + ".(" + body + ")"
+    case Exists(variable, body) => "∃" + variable + ".(" + body + ")"
+    case And(a, b) => "(" + a + " ∧ " + b + ")"
+    case Or(a, b) => "(" + a + " ∨ " + b + ")"
+    case Equivalent(a, b) => "(" + a + " ⇔ " + b + ")"
+    case Implies(premise, conclusion) => s"($premise ⇒ $conclusion)"
 
 }

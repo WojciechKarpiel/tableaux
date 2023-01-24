@@ -39,8 +39,6 @@ object Term {
     def isAtom: Boolean = arity == 0
 
     override def toString: String = Printing.printFunctionLike(name.name, args)
-
-    def jName: Variable = name.name
   }
 
   object Function {
