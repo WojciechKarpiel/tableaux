@@ -10,15 +10,15 @@ import unification.Unifier.UnifierTerm.{Tree, Unifiable}
 import unification.Unifier.{Substitution, UnifierTerm}
 import util.MetadataHolder
 
-object FormulaInterop {
+object UnificationFormulaInterop {
 
-  def apply(predicate: Predicate): UnifierTerm = Tree(predicate.name.name, predicate.args.map(apply), MetadataHolder(true))
+  def toUnifierTerm(predicate: Predicate): UnifierTerm = Tree(predicate.name.name, predicate.args.map(toUnifierTerm), MetadataHolder(true))
 
-  def apply(term: Term): UnifierTerm = term match
+  def toUnifierTerm(term: Term): UnifierTerm = term match
     case unifiable: Term.Unifiable => Unifiable(unifiable)
     case variable: NamedVar => Tree(variable, Seq(), MetadataHolder(false))
     case variable: Term.InternVar => Tree(variable, Seq(), MetadataHolder(false))
-    case Term.Function(name, args) => Tree(name.name, args.map(apply), MetadataHolder(true))
+    case Term.Function(name, args) => Tree(name.name, args.map(toUnifierTerm), MetadataHolder(true))
 
   def toLogicTerm(t: UnifierTerm): Term = t match
     case UnifierTerm.Tree(name, branches, meta) =>
@@ -26,7 +26,7 @@ object FormulaInterop {
     case UnifierTerm.Unifiable(id) => id
 
 
-  private def substitute(formula: Formula, substitution: Substitution) = {
+  def substitute(formula: Formula, substitution: Substitution): Formula = {
     def substituteTerm(t: Term): Term = {
       t match
         case Term.NamedVar(name) => Term.NamedVar(name)
@@ -49,5 +49,4 @@ object FormulaInterop {
 
     substituteFormula(formula)
   }
-
 }

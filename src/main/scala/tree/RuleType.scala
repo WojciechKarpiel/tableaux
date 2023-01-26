@@ -4,7 +4,7 @@ package tree
 import lang.{Formula, NormalizedHeadFormula}
 
 enum RuleType {
-  // ordering implied node expanion ordering
+  // ordering implies node expansion ordering
   case AlphaLike
   case Alpha
   case Beta

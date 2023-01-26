@@ -23,19 +23,17 @@ object Expansion {
     val normalized = Normalization.normalizeHead(formula)
     if normalized != formula then Expansion.singleBranch(Branch(normalized))
     else normalized match
-      case Formula.Predicate(_, _) => Expansion.empty
-      case Formula.Not(_) => Expansion.empty
-      case forall: Formula.ForAll =>
-        Expansion.singleBranch(Branch(gammaExpansion(forall)._2))
-      case Formula.Exists(variable, body) =>
-        val freeVariablesSet = FormulaUtil.freeVariables(body, Set(variable))
-        val freeVariables: Seq[Term] = freeVariablesSet.toSeq
+      case Predicate(_, _) => Expansion.empty
+      case Not(_) => Expansion.empty
+      case ForAll(variable, body) =>
+        Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, new Unifiable(), body)))
+      case Exists(variable, body) =>
+        val freeVariables = FormulaUtil.freeVariables(body, Set(variable))
         val skolemConstantId = FunctionName(new InternVar())
-        val newVariable = Function(skolemConstantId, freeVariables)
-        val formula1 = FormulaUtil.replaceVariable(variable, newVariable, body)
-        Expansion.singleBranch(Branch(formula1))
-      case Formula.And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
-      case Formula.Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
+        val newTerm = Function(skolemConstantId, freeVariables.toSeq)
+        Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, newTerm, body)))
+      case And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
+      case Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
 
   /**
    * @return new unifiable term and expanded formula containing the term

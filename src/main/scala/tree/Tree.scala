@@ -8,7 +8,7 @@ import parser.Parser
 import tree.Node.{NodeId, root}
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
-import unification.{FormulaInterop, Unifier}
+import unification.{UnificationFormulaInterop, Unifier}
 
 import org.parboiled2.ParseError
 
@@ -20,50 +20,40 @@ import scala.util.{Failure, Success}
 final class Tree(val formula: Formula, debug: Boolean) {
   def this(formula: Formula) = this(formula, false)
 
-  def this(formula: String, debug: Boolean) = this({
-    Parser.run(formula) match
-      case Failure(exception) =>
-        println(new Parser(formula).formatError(exception.asInstanceOf[ParseError]))
-        throw exception
-      case Success(value) => value
-  }, debug)
+  def this(formula: String, debug: Boolean) = this(Parser.parseOrThrow(formula), debug)
 
   def this(formula: String) = this(formula, false)
 
   private val rootNode: Node = Node.root(Not(formula))
 
-
   /**
    *
    * @return true if anything was expanded
    */
-  def expand(forbidden: Set[RuleType]): Boolean = {
+  def expand(skippedRules: Set[RuleType]): Boolean =
     var anyExpansionChange = false
 
     @tailrec
-    def loop(): Unit = {
-      val anyChanged = RuleType.values.filterNot(forbidden.contains).exists(expandAll)
-      anyExpansionChange = anyExpansionChange || anyChanged
-      if anyChanged then loop()
-    }
+    def expansionLoop(): Unit =
+      val anyChanged = RuleType.values.filterNot(skippedRules.contains).exists(expandAll)
+      if anyChanged then
+        anyExpansionChange = true
+        expansionLoop()
 
-    loop()
-
-    def unblock(node: Node): Unit = {
-      node.blocked = false
+    def unblock(node: Node): Unit =
+      node.unblock()
       node.children.foreach(unblock)
-    }
 
+    expansionLoop()
     unblock(rootNode)
     anyExpansionChange
-  }
 
   /**
    * returns true if anything was expanded
    */
-  def expandGammaOnce(): Boolean = expand(Set())
+  private def expandGammaOnce(): Boolean = expand(Set())
 
-  def expandNonGamma(): Boolean = expand(Set(Gamma))
+  private def expandNonGamma(): Boolean = expand(Set(Gamma))
 
   /**
    *
@@ -77,8 +67,8 @@ final class Tree(val formula: Formula, debug: Boolean) {
         doDebug {
           if (n.ruleType == Gamma) println("expanding gammma " + n.formula)
         }
-        val bool = n.expand() // shortcirtu D:
-        changed = changed || bool
+        val hasExpanded = n.expand()
+        if hasExpanded then changed = true
       }
       n.children.foreach(traverse)
     }
@@ -97,23 +87,7 @@ final class Tree(val formula: Formula, debug: Boolean) {
     loop(rootNode, 0)
   }
 
-  def printLinear(): Unit = {
-    findTips.foreach { tip =>
-      def up(node: Node): Unit = {
-        println(node)
-        val parent = node.parent
-        parent.foreach(up)
-      }
-
-      up(tip)
-      println(branchClosingUnifiables(tip))
-      println("---------------")
-      println("")
-    }
-  }
-
   def findTips: Seq[Node] = rootNode.findTips
-
 
   private def branchClosingUnifiables(tip: Node): Seq[(UnifierTerm, UnifierTerm)] = {
 
@@ -133,8 +107,8 @@ final class Tree(val formula: Formula, debug: Boolean) {
 
     val preds = findPredicates(tip).distinct
     val negated = findNegatedPredicates(tip).distinct
-    preds.map(FormulaInterop(_)).flatMap { pred =>
-      negated.map(FormulaInterop(_)).flatMap { negPred =>
+    preds.map(UnificationFormulaInterop.toUnifierTerm).flatMap { pred =>
+      negated.map(UnificationFormulaInterop.toUnifierTerm).flatMap { negPred =>
         val result = Unifier.unify(pred, negPred)
         result match
           case UnificationResult.UnificationFailure => Seq()
@@ -143,64 +117,57 @@ final class Tree(val formula: Formula, debug: Boolean) {
     }
   }
 
+  /**
+   * @return substitution that allows for closing all branches of the tree (or None if no such found)
+   */
   @tailrec
-  def solve(maxGammaExpansions: Int): Boolean = {
+  def solve(maxGammaExpansions: Int): Option[Substitution] = {
     expandNonGamma()
     val tips = findTips
-    val cndsq = tips.flatMap { tip =>
+    val initialCandidates = tips.flatMap { tip =>
       if tip.closedForFree then None
       else {
         val res = branchClosingUnifiables(tip)
-        val freeUnifL = freeUnif(res)
+        val freeUnifL = freeUnification(res)
         tip.closedForFree |= freeUnifL.isDefined
         if (tip.closedForFree) doDebug(println(s"$tip is closed for free: $freeUnifL"))
         Some(res)
       }
     }
-    val cnds = reduceq(cndsq)
-    doDebug {
-      val q = cndsq.map(_.toVector).toVector
-      val ccc = cnds.map(_.toVector).toVector
-      val szs = ccc.map(_.size)
-      val wasPointless = q.map(_.toSet) == ccc.map(_.toSet)
-      println(wasPointless.toString + " " + szs)
-    }
-    val doomedAlready = cnds.exists(_.isEmpty)
-    val okSub: Option[Substitution] = if !doomedAlready then hardcoreSolve(cnds) else None
-    okSub match
-      case Some(value) =>
-        doDebug(println(s"Winning sub: $value"))
-        true
+    val candidates = reduceCandidates(initialCandidates)
+
+    val doomedAlready = candidates.exists(_.isEmpty)
+    val solvingSubstitution = if !doomedAlready then hardcoreSolve(candidates.map(_.toList).toList) else None
+    solvingSubstitution match
+      case Some(substitution) =>
+        doDebug(println(s"Winning sub: $substitution"))
+        Some(substitution)
       case None => if maxGammaExpansions == 0 then {
-        doDebug {
-          printTree()
-          printLinear()
-        }
-        false
+        doDebug(printTree())
+        None
       } else {
         doDebug(println("expanding gammas!!!!!"))
         val worthTryingAgain = expandGammaOnce()
-        if worthTryingAgain then solve(maxGammaExpansions - 1) else false
+        if worthTryingAgain then solve(maxGammaExpansions - 1) else None
       }
   }
 
-  private def hasFreeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean =
-    freeUnif(v).isDefined
+  private def hasFreeUnification(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Boolean =
+    freeUnification(v).isDefined
 
-  private def freeUnif(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Option[(UnifierTerm, UnifierTerm)] = {
+  private def freeUnification(v: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Option[(UnifierTerm, UnifierTerm)] = {
     v.find { case (a, b) => Unifier.unify(a, b) match
       case UnificationResult.UnificationFailure => false
       case UnificationResult.UnificationSuccess(substitution) => substitution.isEmpty
     }
   }
 
-  private def reduceq(value: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Seq[Seq[(UnifierTerm, UnifierTerm)]] = {
+  private def reduceCandidates(value: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Seq[Seq[(UnifierTerm, UnifierTerm)]] = {
 
     if value.isEmpty then Seq() else {
       val myStuff = value.head
 
-      val hasContantUnif = hasFreeUnif(myStuff)
-      if (hasContantUnif) reduceq(value.tail) // only tail
+      if hasFreeUnification(myStuff) then reduceCandidates(value.tail)
       else {
         @tailrec
         def dedup(soFar: List[(UnifierTerm, UnifierTerm)], toDo: Seq[(UnifierTerm, UnifierTerm)]): Seq[(UnifierTerm, UnifierTerm)] = {
@@ -211,72 +178,66 @@ final class Tree(val formula: Formula, debug: Boolean) {
           }
         }
 
-        val dd = dedup(Nil, myStuff)
-        dd +: reduceq(value.tail)
+        dedup(Nil, myStuff) +: reduceCandidates(value.tail)
       }
     }
   }
 
   /**
-   * This is v bad to fix later. This is also the hottest inner-loop that runs in exponential
+   * This is also the hottest inner-loop that runs in exponential time
    *
    * @return working substitution, or none if no solution
    */
-  private def hardcoreSolve(candidates: Seq[Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Option[Substitution] =
-    if candidates.isEmpty then {
-      doDebug(println("koniec"))
-      Some(Substitution.empty())
-    } else {
-      val myPart = candidates.head
+  private def hardcoreSolve(candidates: List[List[(Unifier.UnifierTerm, Unifier.UnifierTerm)]]): Option[Substitution] = {
 
 
-      @tailrec
-      def loop(myC: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Option[Substitution] = {
-        if (myC.isEmpty) None //no candidates :(
-        else {
-          val (candA, candB) = myC.head
-          Unifier.unify(candA, candB) match {
-            case UnificationResult.UnificationFailure => loop(myC.tail)
-            case UnificationResult.UnificationSuccess(substitution) =>
-              val rest = candidates.tail.map(propagateChanges(_, substitution))
-              hardcoreSolve(rest) match
-                case Some(subRest) => doDebug(println(s"znalazłem $candA - $candB"))
-                  Some(substitution.concat(subRest))
-                case None => loop(myC.tail)
+    candidates match {
+      case headCandidate :: remainingCandidates =>
+        if (hasFreeUnification(headCandidate)) {
+          doDebug(println(s"this layer is free (remaining:${remainingCandidates.size})  - continuing"))
+          hardcoreSolve(remainingCandidates)
+        } else {
+          @tailrec
+          def loop(branchCandidates: List[(Unifier.UnifierTerm, Unifier.UnifierTerm)]): Option[Substitution] = {
+            branchCandidates match
+              case (candidateA, candidateB) :: tail =>
+                Unifier.unify(candidateA, candidateB) match {
+                  case UnificationResult.UnificationFailure => loop(tail)
+                  case UnificationResult.UnificationSuccess(substitution) =>
+                    hardcoreSolve(remainingCandidates.map(substitute(_, substitution))) match
+                      case Some(subRest) => doDebug(println(s"znalazłem $candidateA - $candidateB"))
+                        Some(substitution.concat(subRest))
+                      case None => loop(tail)
+                }
+              case Nil => None
           }
-        }
-      }
 
-      if (hasFreeUnif(myPart)) { // ta optymalizacja jest potężna!!!
-        val rest = candidates.tail
-        doDebug(println(s"this layer is free (remaining:${rest.size})  - continuing"))
-        hardcoreSolve(candidates.tail)
-      } else loop(myPart)
+          loop(headCandidate)
+        }
+      case Nil =>
+        doDebug(println("koniec"))
+        Some(Substitution.empty())
     }
+  }
 
   private def doDebug(code: => Unit): Unit = if debug then code
 
 
-  private def propagateChanges(
-                                value: Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)],
-                                substitution: Unifier.Substitution
-                              ): Seq[(Unifier.UnifierTerm, Unifier.UnifierTerm)] =
-    value.map {
+  private def substitute(
+                          candidates: List[(Unifier.UnifierTerm, Unifier.UnifierTerm)],
+                          substitution: Unifier.Substitution
+                        ): List[(Unifier.UnifierTerm, Unifier.UnifierTerm)] =
+    candidates.map {
       case (a, b) => (Unifier.applySubstitution(a, substitution), Unifier.applySubstitution(b, substitution))
     }
-
-  def findNode(id: Int): Option[Node] = {
-    def loop(n: Node): Option[Node] = {
-      if (n.id.id == id) Some(n)
-      else n.children.flatMap(loop).headOption
-    }
-
-    loop(rootNode)
-  }
 }
 
 object Tree {
-  def isTautology(formula: String, searchBound: Int): Boolean = new Tree(formula).solve(searchBound)
+  def isTautology(formula: String, searchBound: Int): Boolean = solve(formula, searchBound).isDefined
 
-  def isTautology(formula: Formula, searchBound: Int): Boolean = new Tree(formula).solve(searchBound)
+  def isTautology(formula: Formula, searchBound: Int): Boolean = solve(formula, searchBound).isDefined
+
+  def solve(formula: String, searchBound: Int): Option[Substitution] = new Tree(formula).solve(searchBound)
+
+  def solve(formula: Formula, searchBound: Int): Option[Substitution] = new Tree(formula).solve(searchBound)
 }

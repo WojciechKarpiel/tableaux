@@ -3,8 +3,7 @@ package api
 
 import scala.util.Try
 
-// bo java nie umie formułę D:
-private[api] object ConversionsBecauseJavaCannotIntoImportingFormula {
+private[api] object ConversionHelpersThisLooksBadButSavesMeTyping {
   given toApiFormula: Conversion[lang.Formula, api.Formula] = new api.Formula(_)
 
   given toApiFormulaTry: Conversion[Try[lang.Formula], Try[api.Formula]] = _.map(toApiFormula)

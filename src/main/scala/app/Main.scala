@@ -39,7 +39,7 @@ object Main {
           case None =>
             val startTime = System.nanoTime()
             val tree = new Tree(input, innerDebug)
-            val proven = tree.solve(maxSearchDepth)
+            val proven = tree.solve(maxSearchDepth).isDefined
             val endTime = System.nanoTime()
             val response = if proven then s"To prawda, że ${tree.formula}"
             else s"Nie udało mi się udowodnić, że ${tree.formula} (głębokość szukania: $maxSearchDepth)"
@@ -55,16 +55,16 @@ object Main {
 
 
   private def formatTime(nanos: Long) = {
-    val bse = 1000L
+    val base = 1000L
 
-    def shft(x: Long): Int = if x == 0 then -1 else 1 + shft(x / bse)
+    def log1000(x: Long): Int = if x == 0 then -1 else 1 + log1000(x / base)
 
     def naivePow(base: Long, exp: Long): Long = if exp == 0 then 1 else base * naivePow(base, exp - 1)
 
-    val s = shft(nanos)
-    val u = units(s)
-    val c = naivePow(bse, s)
-    s"${nanos / c},${nanos % c}$u"
+    val log = log1000(nanos)
+    val unit = units(log)
+    val threshold = naivePow(base, log)
+    s"${nanos / threshold},${nanos % threshold}$unit"
   }
 
   private val units = Seq("s", "ms", "μs", "ns").reverse

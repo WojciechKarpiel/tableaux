@@ -1,7 +1,7 @@
 package pl.wojciechkarpiel.tableaux
 package api
 
-import api.ConversionsBecauseJavaCannotIntoImportingFormula.given
+import api.ConversionHelpersThisLooksBadButSavesMeTyping.given
 import lang.Formula.*
 import lang.Term.*
 

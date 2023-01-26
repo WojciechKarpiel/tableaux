@@ -4,10 +4,10 @@ package tree
 import lang.Formula.{ForAll, Predicate}
 import lang.Term.Unifiable
 import lang.{Formula, NormalizedHeadFormula, Term}
-import tree.Node.{NodeId, ShouldNotHappenException}
+import tree.Node.NodeId
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult}
-import unification.{FormulaInterop, Unifier}
+import unification.{UnificationFormulaInterop, Unifier}
 import util.Gensym
 
 import scala.annotation.tailrec
@@ -36,7 +36,7 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
 
   var originated: Seq[Node] = Seq()
 
-  var blocked = false
+  private var blocked = false
 
   def canExpand: Boolean = !blocked && (!hasExpanded || RuleType(formula) == Gamma)
 
@@ -70,48 +70,12 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
     find(this)
   }
 
+  def unblock(): Unit = blocked = false
+
   override def toString: String = {
-    def substitution(): Option[Term] = {
-      def findPredicates(f: Formula): LazyList[Formula.Predicate] = f match
-        case p: Formula.Predicate => LazyList(p)
-        case Formula.Not(formula) => findPredicates(formula)
-        case ForAll(variable, body) => findPredicates(body)
-        case Formula.Exists(variable, body) => findPredicates(body)
-        case Formula.And(a, b) => findPredicates(a) ++ findPredicates(b)
-        case Formula.Or(a, b) => findPredicates(a) ++ findPredicates(b)
-        case Formula.Equivalent(a, b) => findPredicates(a) ++ findPredicates(b)
-        case Formula.Implies(premise, conclusion) => findPredicates(premise) ++ findPredicates(conclusion)
-
-
-      originator
-        .map(_.formula).collect { case fa: ForAll => fa }.map { parentForall =>
-        val (unifiable, expanded) = Expansion.gammaExpansion(parentForall)
-        val flexiblePreds = findPredicates(expanded)
-        val rigidPreds = findPredicates(this.formula)
-        val pairs = flexiblePreds.zip(rigidPreds)
-
-        @tailrec
-        def findUnified(pairs: LazyList[(Predicate, Predicate)]): Term =
-          if pairs.isEmpty then throw new ShouldNotHappenException()
-          else {
-            val (a, b) = pairs.head
-            Unifier.unify(FormulaInterop.apply(a), FormulaInterop.apply(b)) match
-              case UnificationResult.UnificationFailure => throw new ShouldNotHappenException()
-              case UnificationResult.UnificationSuccess(substitution) =>
-                substitution.headOption match
-                  case Some((uVar, uTerm)) =>
-                    val term = FormulaInterop.toLogicTerm(uTerm)
-                    if term == unifiable then FormulaInterop.toLogicTerm(uVar) else term
-                  case None => findUnified(pairs.tail)
-          }
-
-        findUnified(pairs)
-      }
-    }
-
     def idOpt(nodeOpt: Option[Node]): String = nodeOpt.map(_.id.toString).getOrElse("")
 
-    s"$formula <$id> [${idOpt(parent)}] {${idOpt(originator)}} ${substitution().map(t => s"..::$t::..").getOrElse("")}"
+    s"$formula <$id> [${idOpt(parent)}] {${idOpt(originator)}}"
   }
 }
 
@@ -128,6 +92,4 @@ object Node {
   }
 
   private var NodeCount = 0
-
-  class ShouldNotHappenException extends RuntimeException
 }

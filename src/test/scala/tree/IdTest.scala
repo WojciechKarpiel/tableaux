@@ -28,7 +28,7 @@ class IdTest extends AnyFlatSpec with should.Matchers {
 
     assert(Seq(testRefl, testSym, testTrans).forall { s =>
       val t: Tree = new Tree(s)
-      t.solve(3)
+      t.solve(3).isDefined
     })
 
 

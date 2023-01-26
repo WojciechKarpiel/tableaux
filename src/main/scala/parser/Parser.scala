@@ -11,7 +11,7 @@ import org.parboiled2.{Parser as ParboiledParser, *}
 
 import scala.annotation.{compileTimeOnly, tailrec}
 import scala.collection.immutable
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
  * The traditional language of logic is left-recursive, and PEG grammars cannot into direct left-recursion,
@@ -140,6 +140,13 @@ object Parser {
   private def IdentifierStart = CharPredicate.from(c => c.isUnicodeIdentifierStart || c.isDigit /* allow e.g. '0' */)
 
   private def IdentifierChar: CharPredicate = CharPredicate.from(_.isUnicodeIdentifierPart)
+
+  def parseOrThrow(formula: String): Formula = run(formula) match
+    case Failure(parseError: ParseError) =>
+      println(new Parser(formula).formatError(parseError))
+      throw parseError
+    case Failure(exception) => throw exception
+    case Success(parsedFormula) => parsedFormula
 
   private def fixScopedTerm(v: NamedVar, term: Term): Term = term match
     case variable: Variable => variable
