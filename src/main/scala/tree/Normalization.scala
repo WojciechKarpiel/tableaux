@@ -14,8 +14,12 @@ object Normalization:
       case And(a, b) => normalizeHead(Or(Not(a), Not(b)))
       case Or(a, b) => normalizeHead(And(Not(a), Not(b)))
       case predicate: Predicate => Not(predicate)
+      case Possibly(formula) => normalizeHead(Necessarily(Not(formula)))
+      case Necessarily(formula) => normalizeHead(Possibly(Not(formula)))
     case forAll: ForAll => forAll
     case exists: Exists => exists
+    case necessarily: Necessarily => necessarily
+    case possibly: Possibly => possibly
     case and@And(a, b) => if a == b then normalizeHead(a) else and // comparison could be better
     case or@Or(a, b) => if a == b then normalizeHead(a) else or
     case Equivalent(a, b) => normalizeHead(Or(And(a, b), And(Not(a), Not(b))))

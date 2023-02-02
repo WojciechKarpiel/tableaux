@@ -34,6 +34,8 @@ object Expansion {
         Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, newTerm, body)))
       case And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
       case Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
+      case Possibly(formula) => ??? // TODO
+      case Necessarily(formula) => ??? // TODO
 
   /**
    * @return new unifiable term and expanded formula containing the term

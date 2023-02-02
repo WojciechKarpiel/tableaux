@@ -23,6 +23,10 @@ object Formula {
 
   case class Or(a: Formula, b: Formula) extends NormalizedHeadFormula
 
+  case class Necessarily(formula: Formula) extends NormalizedHeadFormula
+
+  case class Possibly(formula: Formula) extends NormalizedHeadFormula
+
   case class Equivalent(a: Formula, b: Formula) extends Formula
 
   case class Implies(premise: Formula, conclusion: Formula) extends Formula

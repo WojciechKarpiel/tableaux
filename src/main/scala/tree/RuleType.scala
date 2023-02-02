@@ -10,6 +10,7 @@ enum RuleType {
   case Beta
   case Delta
   case Gamma
+  case Hgw // TODO
 }
 
 object RuleType {
@@ -20,6 +21,8 @@ object RuleType {
     case Formula.Exists(_, _) => Delta
     case Formula.And(_, _) => Alpha
     case Formula.Or(_, _) => Beta
+    case Formula.Possibly(_) => Hgw
+    case Formula.Necessarily(_) => Hgw
 
   def apply(formula: Formula): RuleType = {
     val normalized = Normalization.normalizeHead(formula)

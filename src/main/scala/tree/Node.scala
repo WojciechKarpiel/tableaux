@@ -13,10 +13,11 @@ import util.Gensym
 import scala.annotation.tailrec
 import scala.collection.immutable.LazyList
 import scala.collection.mutable
+import modal.World
 
-final class Node private(val formula: Formula, val parent: Option[Node], val originator: Option[Node]) {
+final class Node private(val formula: Formula, val parent: Option[Node], val originator: Option[Node], val world: World) {
 
-  def this(formula: Formula, parent: Node, originator: Node) = this(formula, Some(parent), Some(originator))
+  def this(formula: Formula, parent: Node, originator: Node, world: World) = this(formula, Some(parent), Some(originator), world)
 
   val id = new NodeId()
 
@@ -50,7 +51,7 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
         expansion.branches.foreach { newBranch =>
           var currentTip = tip
           newBranch.formulas.foreach { newFormula =>
-            val newNode = new Node(newFormula, currentTip, Node.this)
+            val newNode = new Node(newFormula, currentTip, Node.this, world) // TODO wordl dependent on rule
             originated = newNode +: originated
             currentTip.addChild(newNode)
             currentTip = newNode
@@ -75,12 +76,12 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
   override def toString: String = {
     def idOpt(nodeOpt: Option[Node]): String = nodeOpt.map(_.id.toString).getOrElse("")
 
-    s"$formula <$id> [${idOpt(parent)}] {${idOpt(originator)}}"
+    s"$formula <$id> [${idOpt(parent)}] {${idOpt(originator)}} ..::$world::.."
   }
 }
 
 object Node {
-  def root(formula: Formula): Node = new Node(formula, None, None)
+  def root(formula: Formula, world: World): Node = new Node(formula, None, None, world)
 
   case class NodeId private(id: Int) {
     def this() = {

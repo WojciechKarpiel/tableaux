@@ -27,5 +27,7 @@ object Printing {
     case Or(a, b) => "(" + a + " ∨ " + b + ")"
     case Equivalent(a, b) => "(" + a + " ⇔ " + b + ")"
     case Implies(premise, conclusion) => s"($premise ⇒ $conclusion)"
+    case Necessarily(formula) => s"□($formula)"
+    case Possibly(formula) => s"◇($formula)"
 
 }

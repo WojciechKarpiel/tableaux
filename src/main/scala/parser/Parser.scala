@@ -8,6 +8,7 @@ import util.Identifier
 
 import org.parboiled2.support.hlist.{::, HList, HNil}
 import org.parboiled2.{Parser as ParboiledParser, *}
+import pl.wojciechkarpiel.tableaux.lang
 
 import scala.annotation.{compileTimeOnly, tailrec}
 import scala.collection.immutable
@@ -27,7 +28,7 @@ import scala.util.{Failure, Success, Try}
  * parses LR(1) grammars, but the trick works in both grammar types. Levels:
  * 0. [[level0]]: not, raw predicates
  * 1. [[level1]]: and, or
- * 2. [[level2]]: quantifiers
+ * 2. [[level2]]: modal operators, quantifiers
  * 3. [[level3]]: implies, equivalent
  */
 class Parser(val input: ParserInput) extends ParboiledParser {
@@ -78,7 +79,7 @@ class Parser(val input: ParserInput) extends ParboiledParser {
 
 
   // level 2
-  private def level2: RFormula = rule((forAll | exists) | (level1 ~ (andRight | orRight).?))
+  private def level2: RFormula = rule((necessarily | possibly | forAll | exists) | (level1 ~ (andRight | orRight).?))
 
   private def forAll: RFormula = rule(
     ("∀" | wholeWord("forall")) ~ whiteSpace ~ variable ~ optionalDot ~ level2 ~>
@@ -90,6 +91,9 @@ class Parser(val input: ParserInput) extends ParboiledParser {
       ((variable: NamedVar, body: Formula) => Exists(variable, fixScopedBody(variable, body)))
   )
 
+  private def necessarily: RFormula = rule(("□" | "[]") ~ whiteSpace ~ level2 ~> ((formula: Formula) => Necessarily(formula)))
+
+  private def possibly: RFormula = rule(("◇" | "<>") ~ whiteSpace ~ level2 ~> ((formula: Formula) => Possibly(formula)))
 
   // level 3
   private def level3: RFormula = rule(level2 ~ (equivalentRight | impliesRight).?)
@@ -162,4 +166,6 @@ object Parser {
     case Or(a, b) => Or(fixScopedBody(v, a), fixScopedBody(v, b))
     case Equivalent(a, b) => Equivalent(fixScopedBody(v, a), fixScopedBody(v, b))
     case Implies(premise, conclusion) => Implies(fixScopedBody(v, premise), fixScopedBody(v, conclusion))
+    case Necessarily(formula) => Necessarily(fixScopedBody(v, formula))
+    case Possibly(formula) => Possibly(fixScopedBody(v, formula))
 }

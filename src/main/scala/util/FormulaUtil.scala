@@ -17,6 +17,8 @@ object FormulaUtil {
       case Or(a, b) => Or(replace(a), replace(b))
       case Equivalent(a, b) => Equivalent(replace(a), replace(b))
       case Implies(premise, conclusion) => Implies(replace(premise), replace(conclusion))
+      case Necessarily(formula) => Necessarily(replace(formula))
+      case Possibly(formula) => Possibly(replace(formula))
     }
 
     replace(formula)
@@ -35,6 +37,8 @@ object FormulaUtil {
       case Not(formula) => freeVariables(formula, scopedVariables)
       case ForAll(variable, body) => freeVariables(body, scopedVariables + variable)
       case Exists(variable, body) => freeVariables(body, scopedVariables + variable)
+      case Possibly(formula) => freeVariables(formula, scopedVariables)
+      case Necessarily(formula) => freeVariables(formula, scopedVariables)
       case And(a, b) => freeVariables(a, scopedVariables) ++ freeVariables(b, scopedVariables)
       case Or(a, b) => freeVariables(a, scopedVariables) ++ freeVariables(b, scopedVariables)
 

@@ -41,6 +41,8 @@ object UnificationFormulaInterop {
         case Not(formula) => Not(substituteFormula(formula))
         case ForAll(variable, body) => ForAll(variable, substituteFormula(body))
         case Exists(variable, body) => Exists(variable, substituteFormula(body))
+        case Possibly(formula) => Possibly(substituteFormula(formula))
+        case Necessarily(formula) => Necessarily(substituteFormula(formula))
         case And(a, b) => And(substituteFormula(a), substituteFormula(b))
         case Or(a, b) => Or(substituteFormula(a), substituteFormula(b))
         case Equivalent(a, b) => Equivalent(substituteFormula(a), substituteFormula(b))
