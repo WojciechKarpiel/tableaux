@@ -17,6 +17,8 @@ trait WorldManager {
   def addReachableFrom(from: World): World
 
   def initialWorld: World
+
+  def allWorlds(): Seq[World]
 }
 
 
@@ -46,5 +48,7 @@ final class WorldManagerImpl extends WorldManager:
 
   private def reachableWorldsInternal(from: World): mutable.Buffer[World] =
     reachabilityMap.getOrElse(from, throw new UnknownWorld(from))
+
+  override def allWorlds(): Seq[World] = reachabilityMap.keys.toSeq
 
   private def addWorld(newWorld: World): Unit = reachabilityMap.put(newWorld, new ArrayBuffer[World]())

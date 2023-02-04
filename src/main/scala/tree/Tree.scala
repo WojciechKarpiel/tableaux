@@ -4,12 +4,12 @@ package tree
 import lang.Formula.*
 import lang.Term.NamedVar
 import lang.{Formula, NormalizedHeadFormula, Term}
+import modal.{World, WorldManager, WorldManagerImpl}
 import parser.Parser
 import tree.Node.{NodeId, root}
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
 import unification.{UnificationFormulaInterop, Unifier}
-import modal.{World, WorldManager, WorldManagerImpl}
 
 import org.parboiled2.ParseError
 
@@ -19,6 +19,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success}
 
 final class Tree(val formula: Formula, debug: Boolean) {
+  Node.haxTree = this
+
   def this(formula: Formula) = this(formula, false)
 
   def this(formula: String, debug: Boolean) = this(Parser.parseOrThrow(formula), debug)
@@ -70,7 +72,7 @@ final class Tree(val formula: Formula, debug: Boolean) {
         doDebug {
           if (n.ruleType == Gamma) println("expanding gammma " + n.formula)
         }
-        val hasExpanded = n.expand()
+        val hasExpanded = n.expand(worldManager)
         if hasExpanded then changed = true
       }
       n.children.foreach(traverse)
@@ -94,24 +96,24 @@ final class Tree(val formula: Formula, debug: Boolean) {
 
   private def branchClosingUnifiables(tip: Node): Seq[(UnifierTerm, UnifierTerm)] = {
 
-    def findPredicates(node: Node): Seq[Predicate] = {
-      val newPred: Seq[Predicate] = node.formula match
-        case predicate: Predicate => Seq(predicate)
-        case _ => Seq[Predicate]()
+    def findPredicates(node: Node): Seq[(Predicate, World)] = {
+      val newPred: Seq[(Predicate, World)] = node.formula match
+        case predicate: Predicate => Seq((predicate, node.world))
+        case _ => Seq[(Predicate, World)]()
       newPred ++ node.parent.map(findPredicates).getOrElse(Seq())
     }
 
-    def findNegatedPredicates(node: Node): Seq[Predicate] = {
+    def findNegatedPredicates(node: Node): Seq[(Predicate, World)] = {
       val newPred = node.formula match
-        case Not(predicate: Predicate) => Seq(predicate)
+        case Not(predicate: Predicate) => Seq((predicate, node.world))
         case _ => Seq()
       newPred ++ node.parent.map(findNegatedPredicates).getOrElse(Seq())
     }
 
     val preds = findPredicates(tip).distinct
     val negated = findNegatedPredicates(tip).distinct
-    preds.map(UnificationFormulaInterop.toUnifierTerm).flatMap { pred =>
-      negated.map(UnificationFormulaInterop.toUnifierTerm).flatMap { negPred =>
+    preds.map { case (a, b) => (UnificationFormulaInterop.toUnifierTerm(a), b) }.flatMap { case (pred, predW) =>
+      negated.filter(_._2 == predW).map(_._1).map(UnificationFormulaInterop.toUnifierTerm).flatMap { negPred =>
         val result = Unifier.unify(pred, negPred)
         result match
           case UnificationResult.UnificationFailure => Seq()

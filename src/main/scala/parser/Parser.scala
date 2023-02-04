@@ -99,7 +99,7 @@ class Parser(val input: ParserInput) extends ParboiledParser {
   private def level3: RFormula = rule(level2 ~ (equivalentRight | impliesRight).?)
 
   private def impliesRight: FormulaToFormula =
-    rule(("->" | "=>" | "⇒") ~ whiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Implies(a, b)))
+    rule(("->" | "=>" | "⇒" | "→") ~ whiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Implies(a, b)))
 
   private def equivalentRight: FormulaToFormula =
     rule(("<->" | "<=>" | "⇔") ~ whiteSpace ~ Formula ~> ((a: Formula, b: Formula) => Equivalent(a, b)))
