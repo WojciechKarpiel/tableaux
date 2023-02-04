@@ -48,6 +48,14 @@ class ParserTest extends AnyFlatSpec with should.Matchers {
     test("N(O) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(O))))", Parser.run("(N(O) ∧ (∀i.((N(i) ⇒ N(s(i))))) ⇒ N(s(s(s(O)))))").get)
   }
 
+  it should "parse modal logic expressions" in {
+    test("<>A ", Possibly(A))
+    test("◇□A ", Possibly(Necessarily(A)))
+    test("[]A -> A", Implies(Necessarily(A), A))
+    test("forall x. []P(x) -> [] forall x.P(x) and A", Implies(ForAll(x, Necessarily(P(x))), Necessarily(ForAll(x, And(P(x), A)))))
+    test("forall x. []P(x) -> [] (forall x.P(x)) and A", Implies(ForAll(x, Necessarily(P(x))), Necessarily(And(ForAll(x, P(x)), A))))
+  }
+
   private def test(input: String, expected: Formula): Unit = {
     val p = Parser(input)
     p.runParser() match

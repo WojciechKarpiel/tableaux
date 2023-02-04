@@ -9,7 +9,8 @@ import tree.Node.{NodeId, root}
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
 import unification.{UnificationFormulaInterop, Unifier}
-import modal.World
+import modal.{World, WorldManager, WorldManagerImpl}
+
 import org.parboiled2.ParseError
 
 import scala.annotation.tailrec
@@ -24,9 +25,9 @@ final class Tree(val formula: Formula, debug: Boolean) {
 
   def this(formula: String) = this(formula, false)
 
-  private val rootWorld = new World() // todo no need for root world, just accessability relation, root implicit
+  private val worldManager = new WorldManagerImpl()
 
-  private val rootNode: Node = Node.root(Not(formula), rootWorld)
+  private val rootNode: Node = Node.root(Not(formula), worldManager.initialWorld)
 
   /**
    *

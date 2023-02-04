@@ -4,6 +4,7 @@ package tree
 import lang.Formula.*
 import lang.Term.*
 import lang.{Formula, Term}
+import tree.Expansion.InterplanetaryExpansion.{AllReachableWorlds, IntoNewWorld, SameWorld}
 import util.FormulaUtil
 
 case class Branch(formulas: Seq[Formula]) extends AnyVal
@@ -12,14 +13,18 @@ object Branch {
   def apply(singleFormula: Formula): Branch = Branch(Seq(singleFormula))
 }
 
-case class Expansion(branches: Seq[Branch]) extends AnyVal
+class Expansion(val branches: Seq[Branch]) extends AnyVal
 
 object Expansion {
-  private def empty: Expansion = Expansion(Seq())
 
-  private def singleBranch(singleBranch: Branch): Expansion = Expansion(Seq(singleBranch))
+  // TODO drut przerobić lepiej
+  def apply(branches: Seq[Branch]): InterplanetaryExpansion = SameWorld(new Expansion(branches))
 
-  def apply(formula: Formula): Expansion =
+  private def empty: InterplanetaryExpansion = Expansion.apply(Seq[Branch]())
+
+  private def singleBranch(singleBranch: Branch): InterplanetaryExpansion = Expansion(Seq(singleBranch))
+
+  def apply(formula: Formula): InterplanetaryExpansion =
     val normalized = Normalization.normalizeHead(formula)
     if normalized != formula then Expansion.singleBranch(Branch(normalized))
     else normalized match
@@ -34,8 +39,8 @@ object Expansion {
         Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, newTerm, body)))
       case And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
       case Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
-      case Possibly(formula) => ??? // TODO
-      case Necessarily(formula) => ??? // TODO
+      case Possibly(formula) => IntoNewWorld(formula)
+      case Necessarily(formula) => AllReachableWorlds(formula)
 
   /**
    * @return new unifiable term and expanded formula containing the term
@@ -44,4 +49,9 @@ object Expansion {
     val ForAll(variable, body) = forAll
     val unifiable = new Unifiable()
     unifiable -> FormulaUtil.replaceVariable(variable, unifiable, body)
+
+  enum InterplanetaryExpansion:
+    case SameWorld(expansion: Expansion)
+    case AllReachableWorlds(formula: Formula)
+    case IntoNewWorld(formula: Formula)
 }

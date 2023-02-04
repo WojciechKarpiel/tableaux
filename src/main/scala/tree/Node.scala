@@ -4,6 +4,8 @@ package tree
 import lang.Formula.{ForAll, Predicate}
 import lang.Term.Unifiable
 import lang.{Formula, NormalizedHeadFormula, Term}
+import modal.World
+import tree.Expansion.InterplanetaryExpansion
 import tree.Node.NodeId
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult}
@@ -13,7 +15,6 @@ import util.Gensym
 import scala.annotation.tailrec
 import scala.collection.immutable.LazyList
 import scala.collection.mutable
-import modal.World
 
 final class Node private(val formula: Formula, val parent: Option[Node], val originator: Option[Node], val world: World) {
 
@@ -48,15 +49,18 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
       hasExpanded = true
       val expansion = Expansion(formula)
       findTips.filterNot(_.closedForFree /* no need to expand closed branches */).foreach { tip =>
-        expansion.branches.foreach { newBranch =>
-          var currentTip = tip
-          newBranch.formulas.foreach { newFormula =>
-            val newNode = new Node(newFormula, currentTip, Node.this, world) // TODO wordl dependent on rule
-            originated = newNode +: originated
-            currentTip.addChild(newNode)
-            currentTip = newNode
+        expansion match
+          case InterplanetaryExpansion.SameWorld(expansion) => expansion.branches.foreach { newBranch =>
+            var currentTip = tip
+            newBranch.formulas.foreach { newFormula =>
+              val newNode = new Node(newFormula, currentTip, Node.this, world)
+              originated = newNode +: originated
+              currentTip.addChild(newNode)
+              currentTip = newNode
+            }
           }
-        }
+          case InterplanetaryExpansion.IntoNewWorld(formula) => ??? // TODO + rzeczy z osiągalnych światów?
+          case InterplanetaryExpansion.AllReachableWorlds(formula) => ??? //TODO
       }
     }
     willExpand
