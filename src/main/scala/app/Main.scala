@@ -19,6 +19,9 @@ object Main {
     println("exists x. forall y. (Pije(x) => Pije(y))")
     println("Albo udowodnij istnienie liczby 3")
     println("N(0) ∧ ∀i.((N(i) ⇒ N(s(i)))) ⇒ N(s(s(s(0))))")
+    println("Albo coś modalnego:")
+    println("∀x.□F(x) ⇒ □∀x.F(x)")
+    println("◇(p ⇒ q) ⇒ □p ⇒ ◇q")
     println(s"Głębokość poszukiwań to $maxSearchDepth")
     println(s"Żeby ją zmienić podaj liczbę zamiast formuły logicznej")
 

@@ -24,7 +24,7 @@ object Expansion {
 
   private def singleBranch(singleBranch: Branch): InterplanetaryExpansion = Expansion(Seq(singleBranch))
 
-  def apply(formula: Formula): InterplanetaryExpansion =
+  def apply(formula: Formula, drutTreeFreeVariablesSupplier: () => Set[Variable]): InterplanetaryExpansion =
     val normalized = Normalization.normalizeHead(formula)
     if normalized != formula then Expansion.singleBranch(Branch(normalized))
     else normalized match
@@ -33,7 +33,9 @@ object Expansion {
       case ForAll(variable, body) =>
         Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, new Unifiable(), body)))
       case Exists(variable, body) =>
-        val freeVariables = FormulaUtil.freeVariables(body, Set(variable))
+        // TODO variables downward the branch!!!!!! Prolly be carefull about not including other branches, not sure if that's imprtant
+        //        val freeVariables = drut.freeVariablesOfBranchUpwards(drut) // FormulaUtil.freeVariables(body, Set(variable)) <- was enough for non-modal // ??? TODO branch variables!!!
+        val freeVariables = drutTreeFreeVariablesSupplier() // not sure if cool, see todo above
         val skolemConstantId = FunctionName(new InternVar())
         val newTerm = Function(skolemConstantId, freeVariables.toSeq)
         Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, newTerm, body)))

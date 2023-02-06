@@ -19,9 +19,9 @@ class ModalTreeTest extends AnyFlatSpec with should.Matchers {
 
   "Modal tree" should "handle basic cases taken from https://www.umsu.de/trees" in {
     val idd = 3
-    testSolvable("∀x ◇F(x)→◇∀x F(x)", idd, expected = false)
-    testSolvable("∀x ◇F(x)→□∀x F(x)", idd, expected = false)
-    testSolvable("∀x □F(x)→◇∀x F(x)", idd, expected = false)
+    testSolvable("∀x.◇F(x)→◇∀x.F(x)", idd, expected = false)
+    testSolvable("∀x.◇F(x)→□∀x F(x)", idd, expected = false)
+    testSolvable("∀x.□F(x)→◇∀x.F(x)", idd, expected = false)
 
 
     testSolvable("◇(p→q)→□p→◇q", 3)

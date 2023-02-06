@@ -2,7 +2,7 @@ package pl.wojciechkarpiel.tableaux
 package tree
 
 import lang.Formula.{ForAll, Necessarily, Predicate}
-import lang.Term.Unifiable
+import lang.Term.{Unifiable, Variable}
 import lang.{Formula, NormalizedHeadFormula, Term}
 import modal.{World, WorldManager}
 import tree.Expansion.InterplanetaryExpansion
@@ -10,7 +10,7 @@ import tree.Node.NodeId
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult}
 import unification.{UnificationFormulaInterop, Unifier}
-import util.Gensym
+import util.{FormulaUtil, Gensym}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.LazyList
@@ -47,7 +47,7 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
     if willExpand then {
       blocked = true
       hasExpanded = true
-      val expansion = Expansion(formula)
+      val expansion = Expansion(formula, treeFVs)
       findTips.filterNot(_.closedForFree /* no need to expand closed branches */).foreach { tip =>
         expansion match
           case InterplanetaryExpansion.SameWorld(expansion) => expansion.branches.foreach { newBranch =>
@@ -93,7 +93,7 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
           case InterplanetaryExpansion.AllReachableWorlds(formula) =>
             var currentTip = tip
             val value = worldManager.reachableFrom(world)
-            println(value)
+            //            println(value)
             value.foreach { reachableWorld =>
               val newNode = new Node(formula, currentTip, this, reachableWorld)
               originated = newNode +: originated
@@ -115,6 +115,26 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
   }
 
   def unblock(): Unit = blocked = false
+
+  private def freeVariablesOfBranchUpwards(tip: Node): Set[Variable] =
+    def loop(node: Option[Node]): Set[Variable] =
+      node.map(n => FormulaUtil.freeVariables(n.formula, Set()) ++
+        loop(n.parent)
+      ).getOrElse(Set())
+
+    loop(Some(tip))
+
+  private def treeFVs(): Set[Variable] =
+    def findRoot(nde: Node): Node = nde.parent.map(findRoot).getOrElse(nde)
+
+    val rt = findRoot(this)
+    childrenFVs(rt)
+
+  private def childrenFVs(node: Node): Set[Variable] =
+    def loop(node: Node): Set[Variable] =
+      FormulaUtil.freeVariables(node.formula, Set()) ++ node.children.flatMap(loop)
+
+    loop(node)
 
   override def toString: String = {
     def idOpt(nodeOpt: Option[Node]): String = nodeOpt.map(_.id.toString).getOrElse("")

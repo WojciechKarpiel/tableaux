@@ -1,4 +1,4 @@
-ThisBuild / version := "0.2.0-SNAPSHOT"
+ThisBuild / version := "0.3.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := "3.2.2"
 
@@ -15,6 +15,7 @@ lazy val root = (project in file("."))
       "--initialize-at-build-time",
       "--link-at-build-time",
       "--no-fallback",
+      "--static",
     ),
   )
 

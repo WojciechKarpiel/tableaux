@@ -65,3 +65,22 @@ Sam se musisz opublikować tę bibliotekę:
 ```
 sbt publishLocal
 ```
+
+## Nowości
+
+Rozszerzam program tak, żeby wspierał logikę modalną.
+Tymczasowo następuje bałagan w kodzie źródłowym i spadek wydajności, ale za to już można udowadniać rzeczy typu:
+
+```
+∀x.□F(x) ⇒ □∀x.F(x)
+◇(p ⇒ q) ⇒ □p ⇒ ◇q
+```
+
+◇ (możliwość) można zapisać jako `<>`, a □ (konieczność) jako `[]`. Przykłady wziąłem
+z [tpg](https://github.com/wo/tpg).
+
+Jeśli chodzi o logikę modalną, to można powiedzieć, że jestem jaroszem. Jestem też koniem.
+Jestem mocno niepewny poprawności rozwiązania w ogólnym przypadku, robię na pałę, proszę się nie sugerować
+
+Oprócz tego muszę zacząć sensownie prezentować drzewo dowodu, tera to tylko opowiadam że coś jest prawdą a nie mówię
+czemu xD
