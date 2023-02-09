@@ -92,9 +92,9 @@ final class Tree(val formula: Formula, debug: Boolean) {
     loop(rootNode, 0)
   }
 
-  def findTips: Seq[Node] = rootNode.findTips
+  private[tree] def findTips: Seq[Node] = rootNode.findTips
 
-  private def branchClosingUnifiables(tip: Node): Seq[(UnifierTerm, UnifierTerm)] = {
+  private[tree] def branchClosingUnifiables(tip: Node): Seq[(UnifierTerm, UnifierTerm)] = {
 
     def findPredicates(node: Node): Seq[(Predicate, World)] = {
       val newPred: Seq[(Predicate, World)] = node.formula match

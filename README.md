@@ -34,7 +34,7 @@ W logach dostaniesz namiar na wybudowany obraz, n.p. `localhost/tableaux:0.2.0-S
 Potem już tylko odpalić:
 
 ```
-podman run -it --rm localhost/tableaux:0.2.0-SNAPSHOT
+podman run -it --rm localhost/tableaux:0.4.0-SNAPSHOT
 ```
 
 ### Nie chcę kontenera ziomuś

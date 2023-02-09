@@ -3,7 +3,7 @@ package tree
 
 import lang.{Formula, NormalizedHeadFormula}
 
-enum RuleType {
+enum RuleType:
   // ordering implies node expansion ordering
   case AlphaLike
   case Alpha
@@ -12,7 +12,6 @@ enum RuleType {
   case Gamma
   case Pi
   case Upsilon
-}
 
 object RuleType {
   private def ofNormalizedFormula(formula: NormalizedHeadFormula): RuleType = formula match
