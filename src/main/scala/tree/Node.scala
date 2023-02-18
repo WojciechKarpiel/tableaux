@@ -10,7 +10,7 @@ import tree.Node.NodeId
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult}
 import unification.{UnificationFormulaInterop, Unifier}
-import util.{FormulaUtil, Gensym}
+import util.{FormulaUtil, Gensym, LogicType}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.LazyList
@@ -34,7 +34,9 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
 
   private var children_ : Seq[Node] = Seq()
 
-  private def addChild(child: Node): Unit = children_ = children_ :+ child
+  private def addChild(child: Node): Unit =
+    originated = originated :+ child
+    children_ = children_ :+ child
 
   var originated: Seq[Node] = Seq()
 
@@ -42,53 +44,39 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
 
   def canExpand: Boolean = !blocked && (!hasExpanded || RuleType(formula) == Gamma)
 
-  def expand(worldManager: WorldManager): Boolean = {
+  def expand(strongestLogic: LogicType, worldManager: WorldManager): Boolean = {
     val willExpand = canExpand
     if willExpand then {
       blocked = true
       hasExpanded = true
-      val expansion = Expansion(formula, treeFVs)
+      val expansion = Expansion.apply(formula, strongestLogic, () => branchFreeVariables())
       findTips.filterNot(_.closedForFree /* no need to expand closed branches */).foreach { tip =>
         expansion match
           case InterplanetaryExpansion.SameWorld(expansion) => expansion.branches.foreach { newBranch =>
             var currentTip = tip
             newBranch.formulas.foreach { newFormula =>
               val newNode = new Node(newFormula, currentTip, Node.this, world)
-              originated = newNode +: originated
               currentTip.addChild(newNode)
               currentTip = newNode
             }
           }
           case InterplanetaryExpansion.IntoNewWorld(formula) =>
-            // TODO tu osobny świat dla każdego wierzchołka?
+            // TODO every tip gets a separate world, is it OK?
             val newWorld = worldManager.addReachableFrom(world)
             val newNode = new Node(formula, tip, this, newWorld)
-            originated = newNode +: originated
             tip.addChild(newNode)
-            var currentTip = newNode
 
-            def elo(tp: Option[Node]): Unit = tp.foreach { nde =>
-
-              // HAX swap world and expand lol
+            def expandNecessaryNodesInBranch(tp: Option[Node]): Unit = tp.foreach { nde =>
               if nde.formula.isInstanceOf[Necessarily] && worldManager.isReachableFrom(nde.world, newWorld) then {
-
-                //                val prev = nde.world
-                //                println(s"Expanding ${nde.world} into $newWorld:  ${nde.formula}")
-
-                //                nde.world = newWorld
                 nde.hasExpanded = false
-
-                nde.expand(worldManager) // todo might expand too much
-
-                //                nde.world = prev
-
-                // todo will it expand OK? it will multiple times tho
+                // TODO will unnecesarily expand into all reachanbe worlds, not only the new one
+                nde.expand(strongestLogic, worldManager)
               }
 
-              elo(nde.parent)
+              expandNecessaryNodesInBranch(nde.parent)
             }
 
-            elo(tip.parent)
+            expandNecessaryNodesInBranch(newNode.parent)
 
           case InterplanetaryExpansion.AllReachableWorlds(formula) =>
             var currentTip = tip
@@ -96,7 +84,6 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
             //            println(value)
             value.foreach { reachableWorld =>
               val newNode = new Node(formula, currentTip, this, reachableWorld)
-              originated = newNode +: originated
               currentTip.addChild(newNode)
               currentTip = newNode
             }
@@ -124,17 +111,16 @@ final class Node private(val formula: Formula, val parent: Option[Node], val ori
 
     loop(Some(tip))
 
-  private def treeFVs(): Set[Variable] =
-    def findRoot(nde: Node): Node = nde.parent.map(findRoot).getOrElse(nde)
+  private lazy val myFreeVariables: Set[Variable] = FormulaUtil.freeVariables(formula, Set())
 
-    val rt = findRoot(this)
-    childrenFVs(rt)
+  private def parentFreeVariables(): Set[Variable] =
+    myFreeVariables ++ parent.map(_.parentFreeVariables()).getOrElse(Set())
 
-  private def childrenFVs(node: Node): Set[Variable] =
-    def loop(node: Node): Set[Variable] =
-      FormulaUtil.freeVariables(node.formula, Set()) ++ node.children.flatMap(loop)
+  private def childrenFreeVariables(): Set[Variable] =
+    myFreeVariables ++ children.flatMap(_.childrenFreeVariables())
 
-    loop(node)
+  private def branchFreeVariables(): Set[Variable] =
+    myFreeVariables ++ childrenFreeVariables() ++ parentFreeVariables()
 
   override def toString: String = {
     def idOpt(nodeOpt: Option[Node]): String = nodeOpt.map(_.id.toString).getOrElse("")
@@ -156,7 +142,4 @@ object Node {
   }
 
   private var NodeCount = 0
-
-
-  var haxTree: Tree | Null = null
 }

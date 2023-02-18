@@ -10,6 +10,7 @@ import tree.Node.{NodeId, root}
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
 import unification.{UnificationFormulaInterop, Unifier}
+import util.LogicType
 
 import org.parboiled2.ParseError
 
@@ -19,13 +20,14 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success}
 
 final class Tree(val formula: Formula, debug: Boolean) {
-  Node.haxTree = this
 
   def this(formula: Formula) = this(formula, false)
 
   def this(formula: String, debug: Boolean) = this(Parser.parseOrThrow(formula), debug)
 
   def this(formula: String) = this(formula, false)
+
+  lazy val logicType: LogicType = LogicType.ofFormula(formula)
 
   private val worldManager = new WorldManagerImpl()
 
@@ -72,7 +74,7 @@ final class Tree(val formula: Formula, debug: Boolean) {
         doDebug {
           if (n.ruleType == Gamma) println("expanding gammma " + n.formula)
         }
-        val hasExpanded = n.expand(worldManager)
+        val hasExpanded = n.expand(logicType, worldManager)
         if hasExpanded then changed = true
       }
       n.children.foreach(traverse)
@@ -175,13 +177,15 @@ final class Tree(val formula: Formula, debug: Boolean) {
       if hasFreeUnification(myStuff) then reduceCandidates(value.tail)
       else {
         @tailrec
-        def dedup(soFar: List[(UnifierTerm, UnifierTerm)], toDo: Seq[(UnifierTerm, UnifierTerm)]): Seq[(UnifierTerm, UnifierTerm)] = {
-          if toDo.isEmpty then soFar else {
-            val (a, b) = toDo.head
-            if (soFar.contains((a, b)) || soFar.contains((b, a))) dedup(soFar, toDo.tail)
-            else dedup(toDo.head :: soFar, toDo.tail)
+        def dedup(
+                   soFar: List[(UnifierTerm, UnifierTerm)],
+                   yetToProcess: Seq[(UnifierTerm, UnifierTerm)]
+                 ): Seq[(UnifierTerm, UnifierTerm)] =
+          if yetToProcess.isEmpty then soFar else {
+            val (a, b) = yetToProcess.head
+            if (soFar.contains((a, b)) || soFar.contains((b, a))) dedup(soFar, yetToProcess.tail)
+            else dedup(yetToProcess.head :: soFar, yetToProcess.tail)
           }
-        }
 
         dedup(Nil, myStuff) +: reduceCandidates(value.tail)
       }

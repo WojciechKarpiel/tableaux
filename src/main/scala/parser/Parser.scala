@@ -5,10 +5,10 @@ import lang.Formula.*
 import lang.Term.*
 import lang.{Formula, Term}
 import util.Identifier
+import util.Exceptions.ClashingVariableAndFunctionName
 
 import org.parboiled2.support.hlist.{::, HList, HNil}
 import org.parboiled2.{Parser as ParboiledParser, *}
-import pl.wojciechkarpiel.tableaux.lang
 
 import scala.annotation.{compileTimeOnly, tailrec}
 import scala.collection.immutable
@@ -138,7 +138,7 @@ class Parser(val input: ParserInput) extends ParboiledParser {
   private def optionalDot: Rule0 = rule(optional(ch('.')) ~ whiteSpace)
 }
 
-object Parser {
+object Parser:
   def run(input: ParserInput): Try[Formula] = Parser(input).runParser()
 
   private def IdentifierStart = CharPredicate.from(c => c.isUnicodeIdentifierStart || c.isDigit /* allow e.g. '0' */)
@@ -154,8 +154,10 @@ object Parser {
 
   private def fixScopedTerm(v: NamedVar, term: Term): Term = term match
     case variable: Variable => variable
-    case f@Function(name, _) => // TODO fail if args>0
-      if (name.name == v) v else f.copy(args = f.args.map(fixScopedTerm(v, _)))
+    case f@Function(name, _) =>
+      if (name.name == v)
+        if f.isAtom then v else throw ClashingVariableAndFunctionName(f, v)
+      else f.copy(args = f.args.map(fixScopedTerm(v, _)))
 
   private def fixScopedBody(v: NamedVar, formula: Formula): Formula = formula match
     case Predicate(name, args) => Predicate(name, args.map(a => fixScopedTerm(v, a)))
@@ -168,4 +170,3 @@ object Parser {
     case Implies(premise, conclusion) => Implies(fixScopedBody(v, premise), fixScopedBody(v, conclusion))
     case Necessarily(formula) => Necessarily(fixScopedBody(v, formula))
     case Possibly(formula) => Possibly(fixScopedBody(v, formula))
-}

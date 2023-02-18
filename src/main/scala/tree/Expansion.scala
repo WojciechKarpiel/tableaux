@@ -5,7 +5,9 @@ import lang.Formula.*
 import lang.Term.*
 import lang.{Formula, Term}
 import tree.Expansion.InterplanetaryExpansion.{AllReachableWorlds, IntoNewWorld, SameWorld}
-import util.FormulaUtil
+import util.{FormulaUtil, LogicType}
+
+import util.LogicType.*
 
 case class Branch(formulas: Seq[Formula]) extends AnyVal
 
@@ -16,15 +18,15 @@ object Branch {
 class Expansion(val branches: Seq[Branch]) extends AnyVal
 
 object Expansion {
+  private def empty: InterplanetaryExpansion = SameWorld(new Expansion(Seq[Branch]()))
 
-  // TODO drut przerobić lepiej
-  def apply(branches: Seq[Branch]): InterplanetaryExpansion = SameWorld(new Expansion(branches))
+  private def singleBranch(singleBranch: Branch): InterplanetaryExpansion =
+    SameWorld(new Expansion(Seq(singleBranch)))
 
-  private def empty: InterplanetaryExpansion = Expansion.apply(Seq[Branch]())
-
-  private def singleBranch(singleBranch: Branch): InterplanetaryExpansion = Expansion(Seq(singleBranch))
-
-  def apply(formula: Formula, drutTreeFreeVariablesSupplier: () => Set[Variable]): InterplanetaryExpansion =
+  def apply(formula: Formula,
+            strongestTreeLogic: LogicType,
+            branchFreeVariables: () => Set[Variable]
+           ): InterplanetaryExpansion =
     val normalized = Normalization.normalizeHead(formula)
     if normalized != formula then Expansion.singleBranch(Branch(normalized))
     else normalized match
@@ -33,24 +35,15 @@ object Expansion {
       case ForAll(variable, body) =>
         Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, new Unifiable(), body)))
       case Exists(variable, body) =>
-        // TODO variables downward the branch!!!!!! Prolly be carefull about not including other branches, not sure if that's imprtant
-        //        val freeVariables = drut.freeVariablesOfBranchUpwards(drut) // FormulaUtil.freeVariables(body, Set(variable)) <- was enough for non-modal // ??? TODO branch variables!!!
-        val freeVariables = drutTreeFreeVariablesSupplier() // not sure if cool, see todo above
+        val freeVariables = if strongestTreeLogic.meet(Modal) == Modal then branchFreeVariables()
+        else FormulaUtil.freeVariables(body, Set(variable))
         val skolemConstantId = FunctionName(new InternVar())
         val newTerm = Function(skolemConstantId, freeVariables.toSeq)
         Expansion.singleBranch(Branch(FormulaUtil.replaceVariable(variable, newTerm, body)))
       case And(a, b) => Expansion.singleBranch(Branch(Seq(a, b)))
-      case Or(a, b) => Expansion(Seq(Branch(a), Branch(b)))
+      case Or(a, b) => SameWorld(new Expansion(Seq(Branch(a), Branch(b))))
       case Possibly(formula) => IntoNewWorld(formula)
       case Necessarily(formula) => AllReachableWorlds(formula)
-
-  /**
-   * @return new unifiable term and expanded formula containing the term
-   */
-  def gammaExpansion(forAll: ForAll): (Unifiable, Formula) =
-    val ForAll(variable, body) = forAll
-    val unifiable = new Unifiable()
-    unifiable -> FormulaUtil.replaceVariable(variable, unifiable, body)
 
   enum InterplanetaryExpansion:
     case SameWorld(expansion: Expansion)
