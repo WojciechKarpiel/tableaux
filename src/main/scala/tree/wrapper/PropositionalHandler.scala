@@ -1,10 +1,11 @@
 package pl.wojciechkarpiel.tableaux
-package tree
+package tree.wrapper
 
 import lang.Formula
 import lang.Formula.*
 import parser.Parser
-import tree.PropositionalHandler.PropositionalResult.*
+import tree.wrapper.PropositionalHandler.PropositionalResult.*
+import tree.{Node, Tree}
 import util.LogicType
 
 /**

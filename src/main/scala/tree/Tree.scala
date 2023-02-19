@@ -10,7 +10,7 @@ import tree.Node.{NodeId, root}
 import tree.RuleType.Gamma
 import unification.Unifier.{Substitution, UnificationResult, UnifierTerm}
 import unification.{UnificationFormulaInterop, Unifier}
-import util.LogicType
+import util.{FormulaUtil, LogicType}
 
 import org.parboiled2.ParseError
 
@@ -124,6 +124,8 @@ final class Tree(val formula: Formula, debug: Boolean) {
     }
   }
 
+  var solvingSubstitution: Option[Substitution] = None
+
   /**
    * @return substitution that allows for closing all branches of the tree (or None if no such found)
    */
@@ -148,6 +150,7 @@ final class Tree(val formula: Formula, debug: Boolean) {
     solvingSubstitution match
       case Some(substitution) =>
         doDebug(println(s"Winning sub: $substitution"))
+        this.solvingSubstitution = Some(substitution)
         Some(substitution)
       case None => if maxGammaExpansions == 0 then {
         doDebug(printTree())

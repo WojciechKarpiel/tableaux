@@ -3,9 +3,10 @@ package app
 
 import lang.Formula.Predicate
 import parser.Parser
-import tree.PropositionalHandler.*
-import tree.PropositionalHandler.PropositionalResult.*
-import tree.{PropositionalHandler, Tree}
+import tree.Tree
+import tree.wrapper.PropositionalHandler
+import tree.wrapper.PropositionalHandler.*
+import tree.wrapper.PropositionalHandler.PropositionalResult.*
 import util.LogicType
 
 import scala.annotation.tailrec

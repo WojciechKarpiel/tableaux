@@ -4,8 +4,9 @@ package tree
 import lang.Formula.*
 import lang.Term.*
 import parser.Parser.parseOrThrow
-import tree.PropositionalHandler.PropositionalResult.*
-import tree.PropositionalHandler.{PropositionalResult, StrongerLogic}
+import tree.wrapper.PropositionalHandler
+import tree.wrapper.PropositionalHandler.PropositionalResult.*
+import tree.wrapper.PropositionalHandler.{PropositionalResult, StrongerLogic}
 
 import org.scalatest.*
 import org.scalatest.flatspec.*
